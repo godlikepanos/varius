@@ -1,0 +1,3 @@
+/home/godlike/src/google-code-repo/proto/lua-embedding/build/extern/lua/CMakeFiles/ankilua.dir
+/home/godlike/src/google-code-repo/proto/lua-embedding/build/extern/luabind/CMakeFiles/ankiluabind.dir
+/home/godlike/src/google-code-repo/proto/lua-embedding/build/CMakeFiles/test-lua.dir

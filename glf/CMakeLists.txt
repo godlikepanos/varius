@@ -1,0 +1,132 @@
+CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
+
+PROJECT(GLF_PROJECT)
+
+# Options
+#
+SET(GLF_PLATFORM "X11" CACHE STRING "X11 or FBDV")
+SET(GLF_GL_VERSION "GLES2" CACHE STRING "GLES1 or GLES2 or GL3")
+SET(GLF_ARCH "64" CACHE STRING "64 or 32")
+SET(GLF_INCLUDE_INSTALL_DIR "${CMAKE_INSTALL_PREFIX}/include/" 
+    CACHE PATH "The subdirectory to the header prefix")
+SET(GLF_LIB_INSTALL_DIR "${CMAKE_INSTALL_PREFIX}/lib" 
+    CACHE PATH "Library install path")
+SET(GLF_BUILD_EXAMPLES "OFF" 
+    CACHE PATH "Build examples")
+
+MESSAGE("++ GLF_PLATFORM: ${GLF_PLATFORM}")
+MESSAGE("++ GLF_GL_VERSION: ${GLF_GL_VERSION}")
+MESSAGE("++ GLF_ARCH: ${GLF_ARCH}")
+MESSAGE("++ GLF_INCLUDE_INSTALL_DIR: ${GLF_INCLUDE_INSTALL_DIR}")
+MESSAGE("++ GLF_LIB_INSTALL_DIR: ${GLF_LIB_INSTALL_DIR}")
+MESSAGE("++ GLF_BUILD_EXAMPLES: ${GLF_BUILD_EXAMPLES}")
+
+# Externs
+#
+ADD_SUBDIRECTORY(extern)
+
+# Sources
+#
+SET(GLF_SOURCES
+	src/glf/math.c
+	src/glf/nativegl.c
+	src/glf/gl.c
+	src/glf/image.c
+	src/glf/log.c
+	src/glf/time.c
+	src/glf/fs.c
+	src/glf/texture.c)
+
+# Common
+#
+INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/include
+                    ${GLF_INCLUDE_INSTALL_DIR}
+                    ${CMAKE_CURRENT_SOURCE_DIR}/src)
+
+LINK_DIRECTORIES(${GLF_LIB_INSTALL_DIR})
+
+SET(GLF_LIBS "")
+ADD_DEFINITIONS("-Wall -Wextra -Wno-variadic-macros -std=c89 -pedantic -Wfatal-errors -Werror")
+
+SET(CMAKE_C_FLAGS -m${GLF_ARCH})
+SET(CMAKE_EXE_LINKER_FLAGS -m${GLF_ARCH})
+
+# Per GL
+#
+IF(GLF_GL_VERSION STREQUAL "GLES1")
+	SET(GLF_LIBS ${GLF_LIBS} GLESv1_CM EGL)
+	ADD_DEFINITIONS(-DGLF_GL_VERSION_GLES1)
+
+	SET(GLF_SOURCES ${GLF_SOURCES} src/glf/nativegl_x11egl.c)
+ELSEIF(GLF_GL_VERSION STREQUAL "GLES2")
+	SET(GLF_LIBS ${GLF_LIBS} GLESv2 EGL)
+	ADD_DEFINITIONS(-DGLF_GL_VERSION_GLES2)
+
+	SET(GLF_SOURCES ${GLF_SOURCES} 
+	    src/glf/program.c # Add shaders support
+	    src/glf/nativegl_x11egl.c
+		src/glf/bo.c
+		src/glf/fbo.c)
+ELSEIF(GLF_GL_VERSION STREQUAL "GL3")
+	SET(GLF_LIBS ${GLF_LIBS} GL glfglew)
+	ADD_DEFINITIONS("-DGLF_GL_VERSION_GL3")
+	INCLUDE_DIRECTORIES("extern/GLEW/include")
+
+	SET(GLF_SOURCES ${GLF_SOURCES}
+	    src/glf/program.c # Add shaders support
+	    src/glf/nativegl_x11glx.c
+		src/glf/bo.c
+		src/glf/vao.c
+		src/glf/fbo.c)
+ELSE()
+	MESSAGE(FATAL_ERROR "Incorrect GLF_GL_VERSION ${GLF_GL_VERSION}")
+ENDIF()
+
+# Per platform stuff
+#
+IF(GLF_PLATFORM STREQUAL "X11")
+	ADD_DEFINITIONS(-DGLF_PLATFORM_X11)
+	SET(GLF_LIBS ${GLF_LIBS} X11)
+ELSEIF(GLF_PLATFORM STREQUAL "FBDEV")
+	#SET(CMAKE_CXX_COMPILER arm-none-linux-gnueabi-g++)
+	#SET(CMAKE_C_COMPILER arm-none-linux-gnueabi-gcc)
+	#SET(CMAKE_LINKER arm-none-linux-gnueabi-ld)
+	
+	ADD_DEFINITIONS(-DEGL_FBDEV)
+	ADD_DEFINITIONS(-DGLF_PLATFORM_FBDEV)
+
+	INCLUDE_DIRECTORIES($ENV{HOME}/src/khronos 
+		$ENV{HOME}/src/work/halti/product/)
+	LINK_DIRECTORIES($ENV{HOME}/scratch/install/lib)
+ELSE()
+	MESSAGE(FATAL_ERROR "Incorrect GLF_PLATFORM")
+ENDIF()
+
+ADD_LIBRARY(glf ${GLF_SOURCES})
+TARGET_LINK_LIBRARIES(glf ${GLF_LIBS})
+
+# Install
+#
+INSTALL(TARGETS glf DESTINATION ${GLF_LIB_INSTALL_DIR})
+
+INSTALL(DIRECTORY ${GLF_PROJECT_SOURCE_DIR}/include/
+        DESTINATION "${GLF_INCLUDE_INSTALL_DIR}" 
+        FILES_MATCHING PATTERN "*.h" 
+        PATTERN .svn EXCLUDE
+        PATTERN config.h EXCLUDE)
+
+# config.h
+#
+CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/include/glf/config.h.cmake
+               ${CMAKE_CURRENT_BINARY_DIR}/config.h)
+
+INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/config.h 
+        DESTINATION ${GLF_INCLUDE_INSTALL_DIR}/glf)
+
+# examples
+#
+IF(GLF_BUILD_EXAMPLES STREQUAL "ON")
+	ADD_EXECUTABLE(example0 examples/example0.c)
+	TARGET_LINK_LIBRARIES(example0 glf)
+ENDIF()
+

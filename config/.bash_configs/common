@@ -1,0 +1,27 @@
+echo "Loading godlike's common config..."
+
+PS1='\[\e[3;33m\]\u@\h \[\e[3;32m\]\w\[\e[3;32m\]$\[\e[0m\]'
+
+alias "gg=gvim -O"
+alias "ls=ls --color=auto"
+alias "ll=ls -la"
+alias "grep=grep --color=auto"
+alias "gm=make -j9"
+
+opensourcefiles()
+{
+	find . -name ${1}.hpp -o -name ${1}.cpp -o -name ${1}.h -o -name ${1}.c ! -name "*.svn*" | xargs gvim -O
+}
+
+alias ggf=opensourcefiles
+
+alias "logout=dbus-send --session --type=method_call --print-reply --dest=org.gnome.SessionManager /org/gnome/SessionManager org.gnome.SessionManager.Logout uint32:1"
+
+findinfiles()
+{
+	grep -nr ${1} . | grep -v .svn
+}
+
+alias ggrep=findinfiles
+
+export EDITOR=vim

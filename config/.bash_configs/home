@@ -1,0 +1,20 @@
+echo "Loading godlike's home config..."
+
+# Opt apps
+export PATH=/opt/gdb-7.6/bin:/opt/cgdb/bin:/opt/llvm-3.2/bin:/opt/gcc-4.8/bin:/opt/valgrind/bin:$PATH
+
+# Android
+export ANDROID_SDK=$HOME/src/more/adt-bundle-linux-x86_64-20130729/sdk
+export ANDROID_NDK=$HOME/src/more/android-ndk-r9
+export ANDROID_STANDALONE_TOOLCHAIN=/opt/gcc-android
+export ANDROID_CMAKE=$HOME/src/android-cmake/android.toolchain.cmake
+export ANDROID_ABI="armeabi-v7a with NEON"
+export ANDROID_NATIVE_API_LEVEL=18
+export ANDROID_TOOLCHAIN_NAME=arm-linux-androideabi-4.8
+export ANDROID_STL=gnustl_static
+export ANDROID_STL_FORCE_FEATURES=ON
+
+export PATH=$ANDROID_SDK/tools:$ANDROID_SDK/platform-tools:$ANDROID_NDK:$PATH
+export PATH=/opt/gcc-android/bin:$PATH
+
+alias android-cmake='cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_CMAKE '

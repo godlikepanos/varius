@@ -1,0 +1,2 @@
+/home/godlike/src/google-code-repo/proto/xml/build/extern/tinyxml2/CMakeFiles/ankixml.dir
+/home/godlike/src/google-code-repo/proto/xml/build/CMakeFiles/test.dir

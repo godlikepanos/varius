@@ -1,0 +1,28 @@
+#IncludeRegexLine: ^[ 	]*#[ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/godlike/src/google-code-repo/proto/allocator/Main.cpp
+iostream
+-
+thread
+-
+vector
+-
+cassert
+-
+stdexcept
+-
+new
+-
+cstddef
+-
+cstring
+-
+atomic
+-
+

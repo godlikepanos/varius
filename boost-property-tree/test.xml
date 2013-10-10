@@ -1,0 +1,18 @@
+<subModels>
+	<subModel>
+		<mesh>path/to/mesh.mesh</mesh>
+		<material>path/to/material.mtl</material>
+		<dpMaterial>path/to/dp.mtl</dpMaterial>
+	</subModel>
+	<subModel>
+		<mesh>path1/to/mesh.mesh</mesh>
+		<material>path1/to/material.mtl</material>
+		<dpMaterial>path1/to/dp.mtl</dpMaterial>
+	</subModel>
+</subModels>
+<skeleton>path/to/skeleton .skel</skeleton>
+<skelAnims>
+	<skelAnim>path/to/anim0.sanim</skelAnim>
+	<skelAnim>path/to/anim1.sanim</skelAnim>
+	<skelAnim>path/to/anim2.sanim</skelAnim>
+</skelAnims>

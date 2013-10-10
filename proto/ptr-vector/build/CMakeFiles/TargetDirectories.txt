@@ -1,0 +1,1 @@
+/home/godlike/src/google-code-repo/proto/ptr-vector/build/CMakeFiles/test.dir

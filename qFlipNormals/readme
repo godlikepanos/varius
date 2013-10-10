@@ -1,0 +1,55 @@
+**QFlipNormals**
+
+Copyright (C) 2009, 2010 Panagiotis Christopoulos-Charitos
+
+http://www.ancient-ritual.com
+godlike@ancient-ritual.com
+
+
+=====================
+What is QFlipNormals?
+=====================
+
+This is a ultra simple project build in python and PyQt4. It is simple tool used
+to flip colours in normal maps. Its is nothing special but it can be a nice
+example of how to use PyQt4 (as well as Qt Designer and Qt Resource compiler).
+
+
+=====================================
+What are the supported image formats?
+=====================================
+
+png jpg and tga but you can add all the formats that Qt supports.
+
+
+=================
+How can I run it?
+=================
+
+Type in a terminal: python qflipnormals.py
+
+
+=========================
+What is the requirements?
+=========================
+
+You need python and PyQt4 installed on your system.
+
+
+=================
+What is build.sh?
+=================
+
+In case you make your own modifications in MainWdg.ui or resources.qrc or in any
+image in gfx directory you have to rebuild a few python files. So *build.sh*
+is here to automate this process.
+
+
+===================
+Is there a license?
+===================
+
+There is no license. Use the code as you like, no questions asked. The icons in
+gfx directory are *stolen* KDE icons and they are probably licensed under GPL.
+So you cannot use the icons in commercial products.
+

@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<material>
+	<renderingStage>0</renderingStage>
+
+	<passes>COLOR DEPTH</passes>
+	<levelsOfDetail>2</levelsOfDetail>
+
+	<shadow>1</shadow>
+
+	<shaderProgram>
+		<shader>
+			<type>vertex</type>
+			<includes>
+				<include>shaders/MaterialVertex.glsl</include>
+			</includes>
+			
+			<operations>
+				<operation>
+					<id>0</id>
+					<function>doVertex</function>
+				</operation>
+			</operations>
+		</shader>
+	
+
+		<shader>
+			<type>fragment</type>
+
+			<includes>
+				<include>shaders/MaterialFragmentVariables.glsl</include>
+				<include>shaders/MaterialFragmentFunctions.glsl</include>
+			</includes>
+		
+			<inputs>
+				<input>
+					<type>sampler2D</type>
+					<name>diffuseMap</name>
+					<value>models/imp/imp.diff.tga</value>
+				</input>
+				<input>
+					<type>sampler2D</type>
+					<name>normalMap</name>
+					<value>models/imp/imp.norm.tga</value>
+				</input>
+				<input>
+					<type>sampler2D</type>
+					<name>environmentMap</name>
+					<value>textures/env/env_map_3.png</value>
+				</input>
+				<input>
+					<type>float</type>
+					<name>shininess</name>
+					<value>90.0</value>
+				</input>
+			</inputs>
+		
+			<operations>
+				<operation>
+					<id>0</id>
+					<returnType>vec3</returnType>
+					<function>readRgbFromTexture</function>
+					<arguments>
+						<argument>diffuseMap</argument>
+						<argument>vTexCoords</argument>
+					</arguments>
+				</operation>
+				<operation>
+					<id>1</id>
+					<returnType>vec3</returnType>
+					<function>getNormalFromTexture</function>
+					<arguments>
+						<argument>vNormal</argument>
+						<argument>vTangent</argument>
+						<argument>vTangentW</argument>
+						<argument>normalMap</argument>
+						<argument>vTexCoords</argument>
+					</arguments>
+				</operation>
+				<operation>
+					<returnType>vec3</returnType>
+					<id>2</id>
+					<function>getEnvironmentColor</function>
+					<arguments>
+						<argument>vVertPosViewSpace</argument>
+						<argument>operationOut1</argument>
+						<argument>environmentMap</argument>
+					</arguments>
+				</operation>
+				<operation>
+					<returnType>vec3</returnType>
+					<id>3</id>
+					<function>add2Vec3</function>
+					<arguments>
+						<argument>operationOut0</argument>
+						<argument>operationOut2</argument>
+					</arguments>
+				</operation>
+				<operation>
+					<id>4</id>
+					<function>writeFais</function>
+					<arguments>
+						<argument>operationOut3</argument>
+						<argument>operationOut1</argument>
+						<argument>vec3(0.5)</argument>
+						<argument>100.0</argument>
+						<argument>blurring</argument>
+					</arguments>
+				</operation>
+			</operations>
+		</shader>
+	</shaderProgram>
+</material>
+

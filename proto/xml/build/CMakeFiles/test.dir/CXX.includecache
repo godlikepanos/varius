@@ -1,0 +1,32 @@
+#IncludeRegexLine: ^[ 	]*#[ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+../extern/tinyxml2/tinyxml2.h
+cctype
+-
+climits
+-
+cstdio
+-
+cstring
+-
+cstdarg
+-
+android/log.h
+-
+assert.h
+-
+
+/home/godlike/src/google-code-repo/proto/xml/Main.cpp
+iostream
+-
+tinyxml2.h
+-
+stdexcept
+-
+

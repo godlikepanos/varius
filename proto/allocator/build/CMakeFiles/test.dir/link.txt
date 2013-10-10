@@ -1,0 +1,1 @@
+/opt/gcc-4.7/bin/c++   -g    CMakeFiles/test.dir/Main.cpp.o  -o test -rdynamic -lpthread 

@@ -1,0 +1,1 @@
+/usr/local/bin/c++       CMakeFiles/test.dir/Main.cpp.o  -o test -rdynamic extern/tinyxml2/libankixml.a 

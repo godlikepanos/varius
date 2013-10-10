@@ -1,0 +1,375 @@
+// To empty the stack: lua_settop(l, 0)
+// Get the stack size: lua_gettop(l)
+
+#include "Foo.hpp"
+#include <lua.hpp>
+#include <iostream>
+#include <stdexcept>
+#include <cstdlib>
+#include <cmath>
+#include <fstream>
+#include <typeinfo>
+#include <cassert>
+#include <cstring>
+#include <unordered_map>
+#include <functional>
+#include <vector>
+
+/*template <typename T>
+struct X;
+
+template <typename Class, typename TReturn, typename... Args>
+struct X<TReturn (Class::*)(Args...)>
+{
+	using Method = TReturn (Class::*)(Args...);
+	using Return = TReturn;
+};*/
+
+static void stackDump (lua_State *L) {
+      int i;
+      int top = lua_gettop(L);
+      for (i = 1; i <= top; i++) {  /* repeat for each level */
+        int t = lua_type(L, i);
+        switch (t) {
+    
+          case LUA_TSTRING:  /* strings */
+            printf("`%s'", lua_tostring(L, i));
+            break;
+    
+          case LUA_TBOOLEAN:  /* booleans */
+            printf(lua_toboolean(L, i) ? "true" : "false");
+            break;
+    
+          case LUA_TNUMBER:  /* numbers */
+            printf("%g", lua_tonumber(L, i));
+            break;
+    
+          default:  /* other values */
+            printf("%s", lua_typename(L, t));
+            break;
+    
+        }
+        printf("  ");  /* put a separator */
+      }
+      printf("\n");  /* end the listing */
+    }
+
+static std::string readFile(const char* filename)
+{
+	std::ifstream file(filename);
+	if (!file.is_open())
+	{
+		throw std::runtime_error("Cannot open file");
+	}
+
+	return std::string((std::istreambuf_iterator<char>(file)),
+		std::istreambuf_iterator<char>());
+}
+
+static int luaPanic(lua_State* l)
+{
+	std::string err(lua_tostring(l, -1));
+	std::cerr << "Lua panic attack: " << err << std::endl;
+	abort();
+}
+
+struct UserData
+{
+	void* ptr = nullptr;
+	bool luaGc = false;
+};
+
+template<typename T>
+struct StackGet;
+
+template<>
+struct StackGet<float>
+{
+	float operator()(lua_State* l, int stackIndex)
+	{
+		return luaL_checknumber(l, stackIndex);
+	}
+};
+
+template<>
+struct StackGet<int>
+{
+	int operator()(lua_State* l, int stackIndex)
+	{
+		return luaL_checkint(l, stackIndex);
+	}
+};
+
+template<>
+struct StackGet<const char*>
+{
+	const char* operator()(lua_State* l, int stackIndex)
+	{
+		return luaL_checkstring(l, stackIndex);
+	}
+};
+
+template<typename T>
+struct PushStack;
+
+template<typename T>
+struct PushStack<T&>
+{
+	void operator()(lua_State* l, T& x)
+	{
+		UserData* d = (UserData*)lua_newuserdata(l, sizeof(UserData));
+		luaL_setmetatable(l, "Foo");
+		d->ptr = &x;
+		d->luaGc = false;
+	}
+};
+
+template<typename T>
+struct PushStack<const T&>
+{
+	void operator()(lua_State* l, const T& x)
+	{
+		UserData* d = (UserData*)lua_newuserdata(l, sizeof(UserData));
+		luaL_setmetatable(l, "Foo");
+		d->ptr = &const_cast<T&>(x);
+		d->luaGc = false;
+	}
+};
+
+template<typename T>
+struct PushStack<T*>
+{
+	void operator()(lua_State* l, T* x)
+	{
+		UserData* d = (UserData*)lua_newuserdata(l, sizeof(UserData));
+		luaL_setmetatable(l, "Foo");
+		d->ptr = x;
+		d->luaGc = false;
+	}
+};
+
+template<>
+struct PushStack<const char*>
+{
+	void operator()(lua_State* l, const char* x)
+	{
+		lua_pushstring(l, x);
+	}
+};
+
+template<>
+struct PushStack<int>
+{
+	void operator()(lua_State* l, int x)
+	{
+		lua_pushnumber(l, x);
+	}
+};
+
+template<>
+struct PushStack<float>
+{
+	void operator()(lua_State* l, float x)
+	{
+		lua_pushnumber(l, x);
+	}
+};
+
+void checkArgsCount(lua_State* l, int argsCount)
+{
+	int actualArgsCount = lua_gettop(l);
+	if(argsCount != actualArgsCount)
+	{
+		luaL_error(l, "Expecting %d arguments, got %d", argsCount, 
+			actualArgsCount);
+	}
+}
+
+template<typename Class, typename... Args>
+int classConstructor(lua_State* l)
+{
+	checkArgsCount(l, sizeof...(Args));
+	UserData* d = (UserData*)lua_newuserdata(l, sizeof(UserData));
+
+	luaL_setmetatable(l, "Foo");
+
+	int i = 1;
+	d->ptr = new Class(StackGet<Args>()(l, i++)...); // Order is undefined fix
+	d->luaGc = true;
+
+	return 1;
+}
+
+template<typename Class>
+int classDestructor(lua_State* l)
+{
+	checkArgsCount(l, 1);
+	UserData* d = (UserData*)luaL_checkudata(l, 1, "Foo");
+	if(d->luaGc)
+	{
+		Class* obj = reinterpret_cast<Class*>(d->ptr);
+		delete obj;
+	}
+	return 0;
+}
+
+template<typename T>
+struct CallMethod;
+
+template<typename Class, typename TReturn, typename... Args>
+struct CallMethod<TReturn (Class::*)(Args...)>
+{
+	int operator()(lua_State* l, Class* obj, TReturn (Class::* method)(Args...))
+	{
+		int i = 2;
+		TReturn out = (obj->*method)(StackGet<Args>()(l, i++)...);
+		PushStack<TReturn> ps;
+		ps(l, out);
+		return 1;
+	}
+};
+
+template<typename Class, typename... Args>
+struct CallMethod<void (Class::*)(Args...)>
+{
+	int operator()(lua_State* l, Class* obj, void (Class::* method)(Args...))
+	{
+		int i = 2;
+		(obj->*method)(StackGet<Args>()(l, i++)...);
+		return 0;
+	}
+};
+
+template<typename C>
+struct LuaClass;
+
+template<typename T>
+struct Method;
+
+template<typename Class, typename TReturn, typename... Args>
+struct Method<TReturn (Class::*)(Args...)>
+{
+	static int luafn(lua_State* l)
+	{
+		checkArgsCount(l, sizeof...(Args) + 1);
+		UserData* d = (UserData*)luaL_checkudata(l, 1, LuaClass::NAME);
+
+		TReturn (Class::* methodptr)(Args...) = LuaClass::methods[1];
+		Class* obj = reinterpret_cast<Class*>(d->ptr);
+		
+		return 1;
+	}
+};
+
+
+template<typename C>
+struct LuaClass
+{
+	static const char* NAME;
+	static std::vector<void*> methods;
+	lua_State* l;
+
+	LuaClass(lua_State* l_, const char* name)
+		:l(l_)
+	{
+		assert(name != nullptr && "Class already registered");
+		name = NAME;
+
+		lua_newtable(l);
+		lua_setglobal(l, NAME);
+	}
+
+	template<typename Class, typename TReturn, typename... Args>
+	LuaClass& method(const char* name, TReturn (Class::* mptr)(Args...))
+	{
+		methods.push_back(mptr);
+
+		lua_pushstring(l, name);
+		lua_CFunction lfn = &Method<decltype(mptr)>::luafn;
+		lua_pushcfunction(l, lfn);
+		lua_settable(l, -3);
+
+		return *this;
+	}
+};
+
+template<typename C>
+const char* LuaClass<C>::NAME = nullptr;
+
+template<typename C>
+LuaClass<C> class_(lua_State* l, const char* name)
+{
+	return LuaClass<C>(l, name);
+}
+	
+
+
+int main(int, char**)
+{
+	lua_State* l;
+	l = luaL_newstate();
+	luaL_openlibs(l);
+	lua_atpanic(l, &luaPanic);
+
+#if 0
+	lua_newtable(l);
+	lua_setglobal(l, "Foo");
+
+	lua_getglobal(l, "Foo");
+	lua_pushcfunction(l, (&classConstructor<Foo, float, float>));
+	lua_setfield(l, 1, "new");
+
+	luaL_newmetatable(l, "Foo");
+	lua_pushstring(l, "__index");
+	lua_pushvalue(l, -2);  // pushes the metatable
+	lua_settable(l, -3);  // metatable.__index = metatable
+
+	lua_pushstring(l, "methodii");
+	lua_pushcfunction(l, 
+		(&Method<decltype(&Foo::methodii)>::luafn<&Foo::methodii>));
+	lua_settable(l, -3);
+
+	lua_pushstring(l, "methodvoid");
+	lua_pushcfunction(l, 
+		(&Method<decltype(&Foo::methodvoid)>::luafn<&Foo::methodvoid>));
+	lua_settable(l, -3);
+
+	lua_pushstring(l, "methodfoo");
+	lua_pushcfunction(l, 
+		(&Method<decltype(&Foo::methodfoo)>::luafn<&Foo::methodfoo>));
+	lua_settable(l, -3);
+
+	lua_pushstring(l, "methodptr");
+	lua_pushcfunction(l, 
+		(&Method<decltype(&Foo::methodptr)>::luafn<&Foo::methodptr>));
+	lua_settable(l, -3);
+
+	lua_pushstring(l, "methodstr");
+	lua_pushcfunction(l, 
+		(&Method<decltype(&Foo::methodstr)>::luafn<&Foo::methodstr>));
+	lua_settable(l, -3);
+
+	lua_pushstring(l, "__gc");
+	lua_pushcfunction(l, (&classDestructor<Foo>));
+	lua_settable(l, -3);
+
+#endif
+
+	class_<Foo>(l, "Foo").method("methodii", &Foo::methodii);
+
+
+	std::cout << "===============================================" << std::endl;
+	int e = luaL_dostring(l, readFile("test.lua").c_str());
+	if(e)
+	{
+		std::string str(lua_tostring(l, -1));
+		lua_pop(l, 1);
+		throw std::runtime_error(str);
+	}
+	std::cout << "===============================================" << std::endl;
+
+	lua_close(l);
+	return 0;
+}
+
+

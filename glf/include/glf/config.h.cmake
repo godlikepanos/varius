@@ -1,0 +1,8 @@
+#ifndef GLF_CONFIG_H
+#define GLF_CONFIG_H
+
+#define GLF_GL_VERSION_${GLF_GL_VERSION}
+#define GLF_PLATFORM_${GLF_PLATFORM}
+
+#endif
+

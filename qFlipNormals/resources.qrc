@@ -1,0 +1,11 @@
+<!DOCTYPE RCC>
+<RCC version="1.0">
+	<qresource>
+		<file alias="xy.png">gfx/xy.png</file>
+		<file alias="xz.png">gfx/xz.png</file>
+		<file alias="yz.png">gfx/yz.png</file>
+		<file alias="document-open-folder.png">gfx/document-open-folder.png</file>
+		<file alias="document-save.png">gfx/document-save.png</file>
+		<file alias="application-exit.png">gfx/application-exit.png</file>
+	</qresource>
+</RCC>

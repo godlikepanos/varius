@@ -1,0 +1,1 @@
+/opt/llvm-3.1/bin/clang++       CMakeFiles/test.dir/main.cpp.o  -o test -rdynamic 

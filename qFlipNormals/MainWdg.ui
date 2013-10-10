@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWdg</class>
+ <widget class="QMainWindow" name="MainWdg">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>483</width>
+    <height>470</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Flip Normals - godlike@ancient-ritual.com</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <layout class="QVBoxLayout" name="verticalLayout">
+    <item>
+     <widget class="QScrollArea" name="scrollArea">
+      <property name="widgetResizable">
+       <bool>true</bool>
+      </property>
+      <widget class="QWidget" name="scrollAreaWidgetContents">
+       <property name="geometry">
+        <rect>
+         <x>0</x>
+         <y>0</y>
+         <width>461</width>
+         <height>398</height>
+        </rect>
+       </property>
+       <layout class="QHBoxLayout" name="horizontalLayout">
+        <item>
+         <widget class="QLabel" name="originalImg">
+          <property name="text">
+           <string/>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <spacer name="horizontalSpacer">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>220</width>
+            <height>20</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+        <item>
+         <widget class="QLabel" name="previewImg">
+          <property name="text">
+           <string/>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QMenuBar" name="menubar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>483</width>
+     <height>27</height>
+    </rect>
+   </property>
+   <widget class="QMenu" name="menuFile">
+    <property name="title">
+     <string>&amp;File</string>
+    </property>
+    <addaction name="openAct"/>
+    <addaction name="saveAct"/>
+    <addaction name="quitAct"/>
+   </widget>
+   <widget class="QMenu" name="menu_Actions">
+    <property name="title">
+     <string>&amp;Actions</string>
+    </property>
+    <addaction name="flipXYAct"/>
+    <addaction name="flipXZAct"/>
+    <addaction name="flipYZAct"/>
+   </widget>
+   <addaction name="menuFile"/>
+   <addaction name="menu_Actions"/>
+  </widget>
+  <widget class="QStatusBar" name="statusbar"/>
+  <action name="openAct">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/document-open-folder.png</normaloff>:/document-open-folder.png</iconset>
+   </property>
+   <property name="text">
+    <string>&amp;Open Image</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+O</string>
+   </property>
+  </action>
+  <action name="quitAct">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/application-exit.png</normaloff>:/application-exit.png</iconset>
+   </property>
+   <property name="text">
+    <string>&amp;Quit</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+Q</string>
+   </property>
+  </action>
+  <action name="flipXYAct">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/xy.png</normaloff>:/xy.png</iconset>
+   </property>
+   <property name="text">
+    <string>Flip X,Y</string>
+   </property>
+  </action>
+  <action name="flipXZAct">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/xz.png</normaloff>:/xz.png</iconset>
+   </property>
+   <property name="text">
+    <string>Flip X,Z</string>
+   </property>
+  </action>
+  <action name="flipYZAct">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/yz.png</normaloff>:/yz.png</iconset>
+   </property>
+   <property name="text">
+    <string>Flip Y,Z</string>
+   </property>
+  </action>
+  <action name="saveAct">
+   <property name="icon">
+    <iconset resource="resources.qrc">
+     <normaloff>:/document-save.png</normaloff>:/document-save.png</iconset>
+   </property>
+   <property name="text">
+    <string>&amp;Save Image</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+S</string>
+   </property>
+  </action>
+ </widget>
+ <resources>
+  <include location="resources.qrc"/>
+ </resources>
+ <connections/>
+</ui>

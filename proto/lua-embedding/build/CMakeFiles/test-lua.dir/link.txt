@@ -1,0 +1,1 @@
+/opt/llvm-3.1/bin/clang++       CMakeFiles/test-lua.dir/Main.cpp.o CMakeFiles/test-lua.dir/Foo.cpp.o  -o test-lua -rdynamic -L/usr/local/lib/gcc/x86_64-unknown-linux-gnu/4.7.1 -L/usr/local/lib64 -L/usr/local/lib extern/lua/libankilua.a extern/luabind/libankiluabind.a 

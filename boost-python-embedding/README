@@ -1,0 +1,12 @@
+This prototype project illustrates how to embed Python in our C++ application
+using boost::python library. 
+
+The ScriptingEngine class is a wrapper for boost::python functionality. We
+expose a C++ variable and then we execute a Python script. The
+BoostPythonInterfaces.cpp contains the boost interfaces. The Python module is 
+named "Anki" (yes it is an prototype for AnKi 3D engine) The boost interface has
+a "bpi.h" extension and uses python::boost to expose C++ classes to Python. The
+classes we expose are the Vec3 and Vec4. Both of them are using each other. See
+the test.py for a sample script.
+
+For any questions contact godlike@ancient-ritual.com

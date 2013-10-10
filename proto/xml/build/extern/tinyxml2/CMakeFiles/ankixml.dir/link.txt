@@ -1,0 +1,2 @@
+/usr/bin/ar cr libankixml.a  CMakeFiles/ankixml.dir/tinyxml2.cpp.o
+/usr/bin/ranlib libankixml.a
