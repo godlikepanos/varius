@@ -3,7 +3,7 @@
 #include <stdexcept>
 #include <SDL.h>
 #include <GL/glew.h>
-#include "Descriptors.h"
+#include "anki/gl/Descriptors.h"
 
 SDL_Window* window;
 SDL_GLContext ctx, ctx2;
@@ -238,6 +238,7 @@ void threadFunc()
 
 int main(int, char**)
 {
+#if 0
 	if(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK | SDL_INIT_EVENTS 
 		| SDL_INIT_GAMECONTROLLER) != 0)
 	{
@@ -298,7 +299,7 @@ int main(int, char**)
 	std::thread t1(threadFunc);
 	t1.join();
 	//threadFunc();
+#endif
 
-	CHECK_GL_ERROR();
 	return 0;
 }

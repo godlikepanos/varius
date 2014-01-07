@@ -1,13 +1,15 @@
-#ifndef DESCRIPTORS_H
-#define DESCRIPTORS_H
+#ifndef ANKI_GL_DESCRIPTORS_H
+#define ANKI_GL_DESCRIPTORS_H
 
-#include <cstdint>
-#include <array>
+#include "anki/util/StdTypes.h"
+#include "anki/util/Array.h"
+#include "anki/util/Assert.h"
+#include "anki/gl/Common.h"
 
-#if 0
+namespace anki {
 
 // Macros to avoid typos
-#define ANKI_ENABLE_BIT(bit_) this->mask |= bit_
+#define ANKI_ENABLE_BITS(bit_) (this->mask |= (bit_))
 #define ANKI_CHECK_IMMUTABLE() ANKI_ASSERT((this->mask | IMMUTABLE_BIT) == 1)
 
 /// The base of all descriptors
@@ -16,50 +18,131 @@ class GlDescriptor
 public:
 	virtual ~GlDescriptor()
 	{}
+
+protected:
+	U8 mask = 0; ///< A common generic mask
+
+	enum
+	{
+		IMMUTABLE_BIT = 1 << 0
+	};
 };
 
 /// Framebuffer descriptor
 class GlFramebufferDescriptor: public GlDescriptor
 {
 public:
-	/// Clear bits
-	enum ClearBit
+	/// Clear the color buffers with the specified values
+	void clearColor(F32 r, F32 g, F32 b, F32 a)
 	{
-		COLOR_CLEAR_BIT = 1 << 5,
-		DEPTH_CLEAR_BIT = 1 << 6,
-		STENCIL_CLEAR_BIT = 1 << 7
-	};
+		ANKI_CHECK_IMMUTABLE();
+		ANKI_ENABLE_BITS(COLOR_CLEAR_SET_BIT);
+
+		colorClear[0] = r;
+		colorClear[1] = g;
+		colorClear[2] = b;
+		colorClear[3] = a;
+	}
+
+	/// Clear the depth buffer with the specified value
+	void clearDepth(F32 value)
+	{
+		ANKI_CHECK_IMMUTABLE();
+		ANKI_ENABLE_BITS(DEPTH_CLEAR_SET_BIT);
+
+		depthClear = value;
+	}
+
+	/// Clear the stencil buffer with the specified value
+	void clearStencil(U32 value)
+	{
+		ANKI_CHECK_IMMUTABLE();
+		ANKI_ENABLE_BITS(STENCIL_CLEAR_SET_BIT);
+
+		stencilClear = value;
+	}
+
+	/// Set the viewport
+	void setViewport(U16 minx, U16 miny, U16 maxx, U16 maxy)
+	{
+		ANKI_CHECK_IMMUTABLE();
+		ANKI_ENABLE_BITS(VIEWPORT_SET_BIT);
+
+		viewport[0] = minx;
+		viewport[1] = miny;
+		viewport[2] = maxx;
+		viewport[3] = maxy;
+	}
+
+	/// Invalidate framebuffer right after binding it
+	void invalidate()
+	{
+		ANKI_CHECK_IMMUTABLE();
+		ANKI_ENABLE_BITS(IVALIDATE_FBO_SET_BIT);
+	}
 
 private:
 	enum
 	{
-		IMMUTABLE_BIT = 1 << 0,
 		// State mask bits
-		CLEAR_SET_BIT = 1 << 1,
-		VIEWPORT_SET_BIT = 1 << 2,
-		FBO_SET_BIT = 1 << 3,
-		// Other bits
-		IVALIDATE_FBO_ON_BIND_BIT = 1 << 4
+		COLOR_CLEAR_SET_BIT = 1 << 1,
+		DEPTH_CLEAR_SET_BIT = 1 << 2,
+		STENCIL_CLEAR_SET_BIT = 1 << 3,
+		VIEWPORT_SET_BIT = 1 << 4,
+		FBO_SET_BIT = 1 << 5,
+		IVALIDATE_FBO_SET_BIT = 1 << 6
 	};
 
-	uint8_t mask = 0;
-	uint16_t viewport[4];
-	uint32_t texAttachments[4];
-	uint32_t fbo;
-
-	void setImmutable()
-	{
-		ANKI_ENABLE_BIT(IMMUTABLE_BIT);
-	}
+	Array<F32, 4> colorClear; ///< For glClearColor
+	F32 depthClear; ///< For glClearDepth
+	U32 stencilClear; ///< For glStencilClear
+	Array<U16, 4> viewport; ///< For glViewport
+	//uint32_t texAttachments[4];
+	GLuint fbo;
 };
 
 /// Color descriptor
 class GlColorDescriptor: public GlDescriptor
 {
+public:
+	/// Enable or not the color writing
+	void setWriteMask(Bool r, Bool g, Bool b, Bool a)
+	{
+		ANKI_CHECK_IMMUTABLE();
+		ANKI_ENABLE_BITS(COLOR_WRITE_SET_BIT);
+
+		if(r)
+		{
+			ANKI_ENABLE_BITS(COLOR_WRITE_ENABLED_R_BIT);
+		}
+
+		if(g)
+		{
+			ANKI_ENABLE_BITS(COLOR_WRITE_ENABLED_G_BIT);
+		}
+
+		if(b)
+		{
+			ANKI_ENABLE_BITS(COLOR_WRITE_ENABLED_B_BIT);
+		}
+
+		if(a)
+		{
+			ANKI_ENABLE_BITS(COLOR_WRITE_ENABLED_A_BIT);
+		}
+	}
+
 private:
-	uint8_t setMask = 0;
-	uint8_t colorMask; ///< Enables/disables the color channels (glColorMask)
-	std::array<float, 4> clearColor;
+	enum
+	{
+		// State mask bits
+		COLOR_WRITE_SET_BIT = 1 << 1,
+		// Other bits
+		COLOR_WRITE_ENABLED_R_BIT = 1 << 2, ///< For glColorMask
+		COLOR_WRITE_ENABLED_G_BIT = 1 << 3, ///< For glColorMask
+		COLOR_WRITE_ENABLED_B_BIT = 1 << 4, ///< For glColorMask
+		COLOR_WRITE_ENABLED_A_BIT = 1 << 5 ///< For glColorMask
+	};
 };
 
 /// Depth descriptor
@@ -82,50 +165,43 @@ public:
 	GlDepthDescriptor()
 	{}
 
-	/// Set depth clear value
-	void setClearValue(float value)
-	{
-		clearValue = value;
-		ANKI_ENABLE_BIT(CLEAR_VALUE_BIT);
-	}
-
 	/// Set the depth test function
-	void setDepthFunction(Function function)
+	void setTestFunction(Function function)
 	{
+		ANKI_CHECK_IMMUTABLE();
+		ANKI_ENABLE_BITS(FUNC_SET_BIT);
 		func = function;
-		ANKI_ENABLE_BIT(FUNC_BIT);
 	}
 
 	/// Enable or not the depth test
-	void enableTest(bool enable)
+	void enableTest(Bool enable)
 	{
-		test = enable;
-		ANKI_ENABLE_BIT(TEST_BIT);
+		ANKI_CHECK_IMMUTABLE();
+		ANKI_ENABLE_BITS(TEST_SET_BIT);
+		ANKI_ENABLE_BITS(enable ? TEST_ENABLED_BIT : 0);
 	}
 
 	/// Enable or not depth writing
-	void enableWriting(bool enable)
+	void enableWriting(Bool enable)
 	{
-		write = enable;
-		ANKI_ENABLE_BIT(WRITE_BIT);
+		ANKI_CHECK_IMMUTABLE();
+		ANKI_ENABLE_BITS(WRITE_SET_BIT);
+		ANKI_ENABLE_BITS(enable ? WRITE_ENABLED_BIT : 0);
 	}
 
 private:
 	enum
 	{
 		// State mask bits
-		CLEAR_VALUE_SET_BIT = 1 << 0,
 		FUNC_SET_BIT = 1 << 1,
 		TEST_SET_BIT = 1 << 2,
 		WRITE_SET_BIT = 1 << 3,
 		// Other bits
-		TEST_ENABLED_BIT = = 1 << 4, ///< Enable or not depth testing
+		TEST_ENABLED_BIT = 1 << 4, ///< Enable or not depth testing
 		WRITE_ENABLED_BIT = 1 << 5 ///< Enable or not depth writing
 	};
 
-	uint8_t mask = 0;
-	float clearValue; ///< The depth clear color
-	uint8_t func; ///< The depth function
+	U8 func; ///< The depth test function. For glDepthFunc
 };
 
 /// Stencil descriptor
@@ -159,26 +235,29 @@ public:
 	};
 
 	/// Enable or note stencil test
-	void enableTest(bool enable)
+	void enableTest(Bool enable)
 	{
-		enabled = enable;
-		ANKI_ENABLE_BIT(ENABLED_BIT);
+		ANKI_CHECK_IMMUTABLE();
+		ANKI_ENABLE_BITS(TEST_SET_BIT);
+		ANKI_ENABLE_BITS(enable ? TEST_ENABLED_BIT : 0);
 	}
 
 	/// Set the function. Equivalent to glStencilFunc
-	void setFunction(Function function, uint32_t reference, uint32_t mask)
+	void setFunction(Function function, U32 reference, U32 mask)
 	{
+		ANKI_CHECK_IMMUTABLE();
+		ANKI_ENABLE_BITS(FUNC_SET_BIT);
 		func = function;
 		ref = reference;
 		funcMask = mask;
-		ANKI_ENABLE_BIT(FUNC_BIT);
 	}
 
 	/// Set the stencil mask. Equivalent to glStencilMask
-	void setPlaneMask(uint32_t mask)
+	void setPlaneMask(U32 mask)
 	{
+		ANKI_CHECK_IMMUTABLE();
+		ANKI_ENABLE_BITS(MASK_SET_BIT);
 		planeMask = mask;
-		ANKI_ENABLE_BIT(MASK_BIT);
 	}
 
 	/// Set the operations of stencil fail, depth fail, depth pass. Equivalent
@@ -186,31 +265,40 @@ public:
 	void setOperations(Operation stencFail, Operation depthFail, 
 		Operation depthPass)
 	{
+		ANKI_CHECK_IMMUTABLE();
+		ANKI_ENABLE_BITS(OP_SET_BIT);
 		sfail = stencFail;
 		dpfail = depthFail;
 		dppass = depthPass;
-		ANKI_ENABLE_BIT(OP_BIT);
 	}
 
 private:
 	enum 
 	{
-		ENABLED_BIT = 1 << 0,
-		FUNC_BIT = 1 << 1,
-		MASK_BIT = 1 << 2,
-		OP_BIT = 1 << 3,
+		// State mask bits
+		TEST_SET_BIT = 1 << 1,
+		FUNC_SET_BIT = 1 << 2,
+		MASK_SET_BIT = 1 << 3,
+		OP_SET_BIT = 1 << 4,
+		// Other bits
+		TEST_ENABLED_BIT = 1 << 5
 	};
 
-	uint8_t setMask = 0;
-	uint8_t enabled; ///< Enable or not stencil testing
-	uint8_t func; ///< Param for glStencilFunc
-	uint32_t ref; ///< Param for glStencilFunc
-	uint32_t funcMask; ///< Param for glStencilFunc
-	uint32_t planeMask; ///< Param for glStencilMask
-	uint8_t sfail; ///< Param for glStencilOp 
-	uint8_t dpfail; ///< Param for glStencilOp 
-	uint8_t dppass; ///< Param for glStencilOp 
+	U8 sfail; ///< For glStencilOp 
+	U8 dpfail; ///< For glStencilOp 
+	U8 dppass; ///< For glStencilOp
+	U32 ref; ///< Param for glStencilFunc
+	U32 funcMask; ///< Param for glStencilFunc
+	U32 planeMask; ///< Param for glStencilMask
+	U8 func; ///< Param for glStencilFunc 
 };
+
+/// Blending decriptor
+class GlBlendDescriptor: public GlDescriptor
+{
+};
+
+#if 0
 
 /// Program descriptor
 class ProgramDescriptor
@@ -232,7 +320,7 @@ public:
 	{
 		progs[0] = vert ? *vert : 0;
 		progs[4] = frag ? *frag : 0;
-		ANKI_ENABLE_BIT(PROGRAM_PIPELINE_BIT);
+		ANKI_ENABLE_BITS(PROGRAM_PIPELINE_BIT);
 	}
 
 	/// Set a buffer binding
@@ -245,7 +333,7 @@ public:
 		binding.offset = offset;
 		binding.size = size;
 
-		ANKI_ENABLE_BIT(BUFFER_BINDINGS_BIT);
+		ANKI_ENABLE_BITS(BUFFER_BINDINGS_BIT);
 	}
 
 	/// Set a buffer binding
@@ -258,7 +346,7 @@ public:
 		binding.offset = 0;
 		binding.size = 0xFF; // TODO buffer size
 
-		ANKI_ENABLE_BIT(BUFFER_BINDINGS_BIT);
+		ANKI_ENABLE_BITS(BUFFER_BINDINGS_BIT);
 	}
 
 private:
@@ -294,9 +382,11 @@ private:
 	
 };
 
-// Undef the macro
-#undef ANKI_ENABLE_BIT
-
 #endif
+
+// Undef the macro
+#undef ANKI_ENABLE_BITS
+
+} // end namespace anki
 
 #endif
