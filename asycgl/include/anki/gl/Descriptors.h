@@ -11,6 +11,12 @@ namespace anki {
 // Macros to avoid typos
 #define ANKI_ENABLE_BITS(bit_) (this->mask |= (bit_))
 #define ANKI_CHECK_IMMUTABLE() ANKI_ASSERT((this->mask | IMMUTABLE_BIT) == 1)
+#define ANKI_BIT(x_) (1 << (1 + (x_)))
+
+/// @addtogroup OpenGL
+/// @{
+/// @addtogroup State descriptors
+/// @{
 
 /// The base of all descriptors
 class GlDescriptor
@@ -18,6 +24,14 @@ class GlDescriptor
 public:
 	virtual ~GlDescriptor()
 	{}
+
+	/*void* operator new(PtrSize size)
+	{
+	}
+
+	void operator delete(void* ptr)
+	{
+	}*/
 
 protected:
 	U8 mask = 0; ///< A common generic mask
@@ -37,7 +51,6 @@ public:
 	{
 		ANKI_CHECK_IMMUTABLE();
 		ANKI_ENABLE_BITS(COLOR_CLEAR_SET_BIT);
-
 		colorClear[0] = r;
 		colorClear[1] = g;
 		colorClear[2] = b;
@@ -49,7 +62,6 @@ public:
 	{
 		ANKI_CHECK_IMMUTABLE();
 		ANKI_ENABLE_BITS(DEPTH_CLEAR_SET_BIT);
-
 		depthClear = value;
 	}
 
@@ -58,7 +70,6 @@ public:
 	{
 		ANKI_CHECK_IMMUTABLE();
 		ANKI_ENABLE_BITS(STENCIL_CLEAR_SET_BIT);
-
 		stencilClear = value;
 	}
 
@@ -67,7 +78,6 @@ public:
 	{
 		ANKI_CHECK_IMMUTABLE();
 		ANKI_ENABLE_BITS(VIEWPORT_SET_BIT);
-
 		viewport[0] = minx;
 		viewport[1] = miny;
 		viewport[2] = maxx;
@@ -85,12 +95,12 @@ private:
 	enum
 	{
 		// State mask bits
-		COLOR_CLEAR_SET_BIT = 1 << 1,
-		DEPTH_CLEAR_SET_BIT = 1 << 2,
-		STENCIL_CLEAR_SET_BIT = 1 << 3,
-		VIEWPORT_SET_BIT = 1 << 4,
-		FBO_SET_BIT = 1 << 5,
-		IVALIDATE_FBO_SET_BIT = 1 << 6
+		COLOR_CLEAR_SET_BIT = ANKI_BIT(0),
+		DEPTH_CLEAR_SET_BIT = ANKI_BIT(1),
+		STENCIL_CLEAR_SET_BIT = ANKI_BIT(2),
+		VIEWPORT_SET_BIT = ANKI_BIT(3),
+		FBO_SET_BIT = ANKI_BIT(4),
+		IVALIDATE_FBO_SET_BIT = ANKI_BIT(5)
 	};
 
 	Array<F32, 4> colorClear; ///< For glClearColor
@@ -98,7 +108,7 @@ private:
 	U32 stencilClear; ///< For glStencilClear
 	Array<U16, 4> viewport; ///< For glViewport
 	//uint32_t texAttachments[4];
-	GLuint fbo;
+	GLuint fbo = 0;
 };
 
 /// Color descriptor
@@ -136,12 +146,12 @@ private:
 	enum
 	{
 		// State mask bits
-		COLOR_WRITE_SET_BIT = 1 << 1,
+		COLOR_WRITE_SET_BIT = ANKI_BIT(0),
 		// Other bits
-		COLOR_WRITE_ENABLED_R_BIT = 1 << 2, ///< For glColorMask
-		COLOR_WRITE_ENABLED_G_BIT = 1 << 3, ///< For glColorMask
-		COLOR_WRITE_ENABLED_B_BIT = 1 << 4, ///< For glColorMask
-		COLOR_WRITE_ENABLED_A_BIT = 1 << 5 ///< For glColorMask
+		COLOR_WRITE_ENABLED_R_BIT = ANKI_BIT(1), ///< For glColorMask
+		COLOR_WRITE_ENABLED_G_BIT = ANKI_BIT(2), ///< For glColorMask
+		COLOR_WRITE_ENABLED_B_BIT = ANKI_BIT(3), ///< For glColorMask
+		COLOR_WRITE_ENABLED_A_BIT = ANKI_BIT(4) ///< For glColorMask
 	};
 };
 
@@ -177,28 +187,28 @@ public:
 	void enableTest(Bool enable)
 	{
 		ANKI_CHECK_IMMUTABLE();
-		ANKI_ENABLE_BITS(TEST_SET_BIT);
-		ANKI_ENABLE_BITS(enable ? TEST_ENABLED_BIT : 0);
+		ANKI_ENABLE_BITS(
+			enable ? (TEST_SET_BIT | TEST_ENABLED_BIT) : TEST_SET_BIT);
 	}
 
 	/// Enable or not depth writing
 	void enableWriting(Bool enable)
 	{
 		ANKI_CHECK_IMMUTABLE();
-		ANKI_ENABLE_BITS(WRITE_SET_BIT);
-		ANKI_ENABLE_BITS(enable ? WRITE_ENABLED_BIT : 0);
+		ANKI_ENABLE_BITS(
+			enable ? (WRITE_SET_BIT | WRITE_ENABLED_BIT) : WRITE_SET_BIT);
 	}
 
 private:
 	enum
 	{
 		// State mask bits
-		FUNC_SET_BIT = 1 << 1,
-		TEST_SET_BIT = 1 << 2,
-		WRITE_SET_BIT = 1 << 3,
+		FUNC_SET_BIT = ANKI_BIT(0),
+		TEST_SET_BIT = ANKI_BIT(1),
+		WRITE_SET_BIT = ANKI_BIT(2),
 		// Other bits
-		TEST_ENABLED_BIT = 1 << 4, ///< Enable or not depth testing
-		WRITE_ENABLED_BIT = 1 << 5 ///< Enable or not depth writing
+		TEST_ENABLED_BIT = ANKI_BIT(3), ///< Enable or not depth testing
+		WRITE_ENABLED_BIT = ANKI_BIT(4) ///< Enable or not depth writing
 	};
 
 	U8 func; ///< The depth test function. For glDepthFunc
@@ -238,8 +248,8 @@ public:
 	void enableTest(Bool enable)
 	{
 		ANKI_CHECK_IMMUTABLE();
-		ANKI_ENABLE_BITS(TEST_SET_BIT);
-		ANKI_ENABLE_BITS(enable ? TEST_ENABLED_BIT : 0);
+		ANKI_ENABLE_BITS(
+			enable ? (TEST_SET_BIT | TEST_ENABLED_BIT) : TEST_SET_BIT);
 	}
 
 	/// Set the function. Equivalent to glStencilFunc
@@ -276,12 +286,12 @@ private:
 	enum 
 	{
 		// State mask bits
-		TEST_SET_BIT = 1 << 1,
-		FUNC_SET_BIT = 1 << 2,
-		MASK_SET_BIT = 1 << 3,
-		OP_SET_BIT = 1 << 4,
+		TEST_SET_BIT = ANKI_BIT(0),
+		FUNC_SET_BIT = ANKI_BIT(1),
+		MASK_SET_BIT = ANKI_BIT(2),
+		OP_SET_BIT = ANKI_BIT(3),
 		// Other bits
-		TEST_ENABLED_BIT = 1 << 5
+		TEST_ENABLED_BIT = ANKI_BIT(4)
 	};
 
 	U8 sfail; ///< For glStencilOp 
@@ -296,6 +306,88 @@ private:
 /// Blending decriptor
 class GlBlendDescriptor: public GlDescriptor
 {
+public:
+	/// Blend equation
+	enum Equation
+	{
+		ADD_EQUATION, 
+		SUBTRACT_EQUATION,
+		REVERSE_SUBTRACT_EQUATION, 
+		MIN_EQUATION, 
+		MAX_EQUATION
+	};
+
+	/// Blend function
+	enum Function
+	{
+		ZERO_FUNCTION,
+		ONE_FUNCTION,
+		SRC_COLOR_FUNCTION,
+		ONE_MINUS_SRC_COLOR_FUNCTION,
+		DST_COLOR_FUNCTION,
+		ONE_MINUS_DST_COLOR_FUNCTION,
+		SRC_ALPHA_FUNCTION,
+		ONE_MINUS_SRC_ALPHA_FUNCTION,
+		DST_ALPHA_FUNCTION,
+		ONE_MINUS_DST_ALPHA_FUNCTION,
+		CONSTANT_COLOR_FUNCTION,
+		ONE_MINUS_CONSTANT_COLOR_FUNCTION,
+		CONSTANT_ALPHA_FUNCTION,
+		ONE_MINUS_CONSTANT_ALPHA_FUNCTION
+	};
+
+	/// Enable or not blending. Equivalent to glEnable(GL_BLEND)
+	void enable(Bool enable)
+	{
+		ANKI_CHECK_IMMUTABLE();
+		ANKI_ENABLE_BITS(
+			enable ? (BLENDING_SET_BIT | ENABLE_BIT) : BLENDING_SET_BIT);
+	}
+
+	/// Set blend equation. Equivalent to glBlendEquation
+	void setEquation(Equation equation)
+	{
+		ANKI_CHECK_IMMUTABLE();
+		ANKI_ENABLE_BITS(EQUATION_SET_BIT);
+		eq = equation;
+	}
+
+	/// Set the blend functions. Equivalent to glBlendFunc
+	void setFunctions(Function sfactor, Function dfactor)
+	{
+		ANKI_CHECK_IMMUTABLE();
+		ANKI_ENABLE_BITS(FUNC_SET_BIT);
+		sfunc = sfactor;
+		dfunc = dfactor;
+	}
+
+	/// Set the blend color. Equivalent to glBlendColor
+	void setColor(F32 r, F32 g, F32 b, F32 a)
+	{
+		ANKI_CHECK_IMMUTABLE();
+		ANKI_ENABLE_BITS(COLOR_SET_BIT);
+		color[0] = r;
+		color[1] = g;
+		color[2] = b;
+		color[3] = a;
+	}
+
+private:
+	enum
+	{
+		// State mask bits
+		BLENDING_SET_BIT = ANKI_BIT(0),
+		EQUATION_SET_BIT = ANKI_BIT(1),
+		FUNC_SET_BIT = ANKI_BIT(2),
+		COLOR_SET_BIT = ANKI_BIT(3),
+		// Other bits
+		ENABLE_BIT = ANKI_BIT(4),
+	};
+
+	U8 eq; ///< For glBlendEquation
+	U8 sfunc; ///< For glBlendFunc
+	U8 dfunc; ///< For glBlendFunc
+	Array<F32, 4> color; ///< For glBlendColor
 };
 
 #if 0
@@ -384,9 +476,14 @@ private:
 
 #endif
 
-// Undef the macro
-#undef ANKI_ENABLE_BITS
+/// @}
+/// @}
 
 } // end namespace anki
+
+// Undef the macros
+#undef ANKI_ENABLE_BITS
+#undef ANKI_CHECK_IMMUTABLE
+#undef ANKI_BIT
 
 #endif

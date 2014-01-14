@@ -14,4 +14,12 @@
 #	error "See file"
 #endif
 
+namespace anki {
+
+class Gl
+{
+};
+
+} // end namespace anki
+
 #endif

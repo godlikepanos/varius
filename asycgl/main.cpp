@@ -42,10 +42,10 @@ void main()
 const char* frag_src = R"(
 #version 430 core
 
-/*in vertOut
+layout(binding = 10, std140) uniform uBuffer
 {
-	vec3 vColor;
-};*/
+	vec3 color;
+};
 
 layout(location = 0) in vec3 vColor;
 
@@ -53,7 +53,7 @@ layout(location = 0) out vec3 fColor;
 
 void main()
 {
-	fColor = vColor + vec3(0.2);
+	fColor = vColor * color;
 }
 )";
 
@@ -206,6 +206,10 @@ void threadFunc()
 {
 	SDL_GL_MakeCurrent(window, ctx2);
 
+	vert_prog = createProg(GL_VERTEX_SHADER, vert_src);
+	frag_prog = createProg(GL_FRAGMENT_SHADER, frag_src);
+	vertBuff = createVertexBuffer();
+
 
 	glDisable(GL_DEPTH_TEST);
 	glViewport(0, 0, 800, 800);
@@ -216,29 +220,46 @@ void threadFunc()
 	glUseProgram(0);
 	glBindProgramPipeline(ppline);
 
-	int iterations = 10;
+	// Create uniform buffer
+	GLuint ubuff;
+	glGenBuffers(1, &ubuff);
+	glBindBuffer(GL_UNIFORM_BUFFER, ubuff);
+	float col[4] = {0, 0, 1, 1};
+	glBufferData(GL_UNIFORM_BUFFER, sizeof(float) * 4, col, GL_DYNAMIC_DRAW);
+	glBindBuffer(GL_UNIFORM_BUFFER, 0);
+	glBindBufferBase(GL_UNIFORM_BUFFER, 10, ubuff);
+	CHECK_GL_ERROR();
+
+	int iterations = 20;
 	do
 	{
 		glClearColor((float)rand() / RAND_MAX, (float)rand() / RAND_MAX, 
 			(float)rand() / RAND_MAX, 1.0);
 		glClear(GL_COLOR_BUFFER_BIT);
 
+		col[0] = (float)rand() / RAND_MAX;
+		col[1] = (float)rand() / RAND_MAX;
+		col[2] = (float)rand() / RAND_MAX;
+		glBindBuffer(GL_UNIFORM_BUFFER, ubuff);	
+		glBufferData(GL_UNIFORM_BUFFER, sizeof(float) * 4, col, GL_DYNAMIC_DRAW);
+
+
 		glDrawArrays(GL_TRIANGLES, 0, 6);
 
 		SDL_GL_SwapWindow(window);
 
-		SDL_Delay(500);
+		SDL_Delay(100);
 
 	} while(iterations--);
 
 	CHECK_GL_ERROR();
 	
+	glFinish();
 	SDL_GL_MakeCurrent(window, nullptr);
 }
 
 int main(int, char**)
 {
-#if 0
 	if(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK | SDL_INIT_EVENTS 
 		| SDL_INIT_GAMECONTROLLER) != 0)
 	{
@@ -291,15 +312,10 @@ int main(int, char**)
 	}
 	glGetError();
 
-	vert_prog = createProg(GL_VERTEX_SHADER, vert_src);
-	frag_prog = createProg(GL_FRAGMENT_SHADER, frag_src);
-	vertBuff = createVertexBuffer();	
-
 
 	std::thread t1(threadFunc);
 	t1.join();
 	//threadFunc();
-#endif
 
 	return 0;
 }
