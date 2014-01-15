@@ -24,17 +24,17 @@ out gl_PerVertex
 	vec4 gl_Position;
 };
 
-/*out vertOut
+layout(binding = 1, std140) uniform uBuffer
 {
-	vec3 vColor;
-};*/
+	vec4 color;
+} ub;
 
 layout(location = 0) out vec3 vColor;
 
 void main()
 {
 	gl_Position = vec4(position * 0.9, 1.0);
-	vColor = color;
+	vColor = color + ub.color.rgb;
 }
 )";
 
@@ -53,7 +53,7 @@ layout(location = 0) out vec3 fColor;
 
 void main()
 {
-	fColor = vColor * color;
+	fColor = vColor + color;
 }
 )";
 
@@ -116,6 +116,56 @@ GLuint createProg(GLenum type, const char* src)
 		prog = 0;
 	}
 
+	if(prog)
+	{
+		GLint count;
+		glGetProgramInterfaceiv(prog, GL_UNIFORM, GL_ACTIVE_RESOURCES, &count);
+		std::cout << "Uniform count " << count << std::endl;
+
+		for(int i = 0; i < count; i++)
+		{
+			char name[256];
+			GLint len;
+			glGetProgramResourceName(prog, GL_UNIFORM, i, sizeof(name),
+				&len, name);
+			name[len] = '\0';
+
+			GLenum prop[] = {GL_OFFSET};
+			GLint out[1];
+			glGetProgramResourceiv(prog, GL_UNIFORM, i, 1, prop, 
+				sizeof(prop), NULL, out);
+
+			std::cout << name 
+				<< " offset:" << out[0]
+				<< std::endl;
+		}
+
+		glGetProgramInterfaceiv(prog, GL_UNIFORM_BUFFER, 
+			GL_ACTIVE_RESOURCES, &count);
+		std::cout << "Uniform buffers " << count << std::endl;
+
+		for(int i = 0; i < count; i++)
+		{
+			char name[256];
+			GLint len;
+			glGetProgramResourceName(prog, GL_UNIFORM_BLOCK, i, sizeof(name),
+				&len, name);
+			name[len] = '\0';
+
+			GLenum prop[] = {GL_BUFFER_BINDING, GL_BUFFER_DATA_SIZE};
+			GLint out[2];
+			glGetProgramResourceiv(prog, GL_UNIFORM_BLOCK, i, 2, prop, 
+				sizeof(prop), NULL, out);
+
+			std::cout << name 
+				<< " binding:" << out[0]
+				<< " size:" << out[1]
+				<< std::endl;
+		}
+
+		std::cout << std::endl;
+	}
+
 	return prog;
 }
 
@@ -123,22 +173,22 @@ GLuint createVertexBuffer()
 {
 	static float vert[] = {
 		-1, -1, 0,
-		1, 0, 0,
+		0, 0, 0,
 
 		1, -1, 0,
-		0, 1, 0,
+		0, 0, 0,
 
 		-1, 1, 0,
-		0, 0, 1,
+		0, 0, 0,
 
 		1, -1, 0,
-		1, 1, 0,
+		0, 0, 0,
 
 		1, 1, 0,
-		1, 0, 1,
+		0, 0, 0,
 
 		-1, 1, 0,
-		1, 1, 1};
+		0, 0, 0};
 
 	GLuint buff;
 
@@ -224,10 +274,19 @@ void threadFunc()
 	GLuint ubuff;
 	glGenBuffers(1, &ubuff);
 	glBindBuffer(GL_UNIFORM_BUFFER, ubuff);
-	float col[4] = {0, 0, 1, 1};
+	float col[4] = {0, 0, 0, 1};
 	glBufferData(GL_UNIFORM_BUFFER, sizeof(float) * 4, col, GL_DYNAMIC_DRAW);
 	glBindBuffer(GL_UNIFORM_BUFFER, 0);
 	glBindBufferBase(GL_UNIFORM_BUFFER, 10, ubuff);
+	CHECK_GL_ERROR();
+
+
+	GLuint ubuff2;
+	glGenBuffers(1, &ubuff2);
+	glBindBuffer(GL_UNIFORM_BUFFER, ubuff2);
+	glBufferData(GL_UNIFORM_BUFFER, sizeof(float) * 4, col, GL_DYNAMIC_DRAW);
+	glBindBuffer(GL_UNIFORM_BUFFER, 0);
+	glBindBufferBase(GL_UNIFORM_BUFFER, 1, ubuff2);
 	CHECK_GL_ERROR();
 
 	int iterations = 20;
@@ -237,10 +296,21 @@ void threadFunc()
 			(float)rand() / RAND_MAX, 1.0);
 		glClear(GL_COLOR_BUFFER_BIT);
 
-		col[0] = (float)rand() / RAND_MAX;
+		/*col[0] = (float)rand() / RAND_MAX;
 		col[1] = (float)rand() / RAND_MAX;
-		col[2] = (float)rand() / RAND_MAX;
+		col[2] = (float)rand() / RAND_MAX;*/
+		col[0] = 0.5;
+		col[1] = 0;
+		col[2] = 0;
+
 		glBindBuffer(GL_UNIFORM_BUFFER, ubuff);	
+		glBufferData(GL_UNIFORM_BUFFER, sizeof(float) * 4, col, GL_DYNAMIC_DRAW);
+
+		col[0] = 0;
+		col[1] = 0.5;
+		col[2] = 0;
+
+		glBindBuffer(GL_UNIFORM_BUFFER, ubuff2);	
 		glBufferData(GL_UNIFORM_BUFFER, sizeof(float) * 4, col, GL_DYNAMIC_DRAW);
 
 
