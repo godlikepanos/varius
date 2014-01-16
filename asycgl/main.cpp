@@ -24,7 +24,7 @@ out gl_PerVertex
 	vec4 gl_Position;
 };
 
-layout(binding = 1, std140) uniform uBuffer
+layout(binding = 1, std140) buffer uBuffer
 {
 	vec4 color;
 } ub;
@@ -163,6 +163,30 @@ GLuint createProg(GLenum type, const char* src)
 				<< std::endl;
 		}
 
+		glGetProgramInterfaceiv(prog, GL_SHADER_STORAGE_BLOCK, 
+			GL_ACTIVE_RESOURCES, &count);
+		std::cout << "Storage buffers " << count << std::endl;
+
+		for(int i = 0; i < count; i++)
+		{
+			char name[256];
+			GLint len;
+			glGetProgramResourceName(prog, GL_SHADER_STORAGE_BLOCK, 
+				i, sizeof(name),
+				&len, name);
+			name[len] = '\0';
+
+			GLenum prop[] = {GL_BUFFER_BINDING, GL_BUFFER_DATA_SIZE};
+			GLint out[2];
+			glGetProgramResourceiv(prog, GL_SHADER_STORAGE_BLOCK, i, 2, prop, 
+				sizeof(prop), NULL, out);
+
+			std::cout << name 
+				<< " binding:" << out[0]
+				<< " size:" << out[1]
+				<< std::endl;
+		}
+
 		std::cout << std::endl;
 	}
 
@@ -286,7 +310,7 @@ void threadFunc()
 	glBindBuffer(GL_UNIFORM_BUFFER, ubuff2);
 	glBufferData(GL_UNIFORM_BUFFER, sizeof(float) * 4, col, GL_DYNAMIC_DRAW);
 	glBindBuffer(GL_UNIFORM_BUFFER, 0);
-	glBindBufferBase(GL_UNIFORM_BUFFER, 1, ubuff2);
+	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, ubuff2);
 	CHECK_GL_ERROR();
 
 	int iterations = 20;
