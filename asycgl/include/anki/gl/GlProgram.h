@@ -3,6 +3,7 @@
 
 #include "anki/gl/GlObject.h"
 #include "anki/util/Assert.h"
+#include "anki/util/Dictionary.h"
 
 namespace anki {
 
@@ -28,32 +29,6 @@ public:
 		UNIFORM_VARIABLE,
 		BUFFER_VARIABLE
 	};
-
-	GlProgramVariable(
-		Type t, 
-		const char* name_, 
-		const GlProgram* program,
-		GLenum dataType_,
-		U8 arrSize_,
-		GLint location,
-		GlProgramBlock* block_,
-		I32 arrayStride_,
-		I32 matrixStride_)
-		:	type(t),
-			name(name),
-			prog(program),
-			dataType(dataType_),
-			arrSize(arrSize_),
-			loc(location),
-			block(block_),
-			arrayStride(arrayStride_),
-			matrixStride(matrixStride_)
-	{
-		ANKI_ASSERT(prog);
-	}
-
-	virtual ~GlProgramVariable()
-	{}
 
 	/// @name Accessors
 	/// @{
@@ -96,51 +71,69 @@ public:
 	/// @name Block setters
 	/// Write a client memory that represents the interface block
 	/// @{
-	void writeClientMemory(void* buff, U32 buffSize,
+	void writeClientMemory(void* buffBase, U32 buffSize,
 		const F32 arr[], U32 size) const;
 
-	void writeClientMemory(void* buff, U32 buffSize,
+	void writeClientMemory(void* buffBase, U32 buffSize,
 		const Vec2 arr[], U32 size) const;
 
-	void writeClientMemory(void* buff, U32 buffSize,
+	void writeClientMemory(void* buffBase, U32 buffSize,
 		const Vec3 arr[], U32 size) const;
 
-	void writeClientMemory(void* buff, U32 buffSize,
+	void writeClientMemory(void* buffBase, U32 buffSize,
 		const Vec4 arr[], U32 size) const;
 
-	void writeClientMemory(void* buff, U32 buffSize,
+	void writeClientMemory(void* buffBase, U32 buffSize,
 		const Mat3 arr[], U32 size) const;
 
-	void writeClientMemory(void* buff, U32 buffSize,
+	void writeClientMemory(void* buffBase, U32 buffSize,
 		const Mat4 arr[], U32 size) const;
 	/// @}
 
 private:
-	U8 type; ///< It's type
+	U8 type = MAX_U8; ///< It's type
 	std::string name; ///< The name inside the shader program
-	const GlProgram* prog; ///< Used for sanity checks
-	
-	GLenum dataType; ///< GL_FLOAT or GL_FLOAT_VEC2 etc.
-	U8 arrSize; ///< Its 1 if it is a single or >1 if it is an array
-	
-	GLint loc; ///< For uniforms and attributes
+	const GlProgram* prog = nullptr; ///< Used for sanity checks
 
-	GlProgramBlock* block; ///< Interface block
+	GLenum dataType = GL_NONE; ///< GL_FLOAT or GL_FLOAT_VEC2 etc.
+	U8 arrSize = 0; ///< Its 1 if it is a single or >1 if it is an array
 
-	I32 offset; ///< Offset inside the block
+	I32 loc = -1; ///< For uniforms and attributes
+
+	/// @name For variables in interface blocks
+	/// @{
+	GlProgramBlock* block = nullptr; ///< Interface block
 
 	/// Stride between the each array element if the variable is array
-	I32 arrayStride;
+	I32 arrStride = -1;
+
+	I32 offset = -1; ///< Offset inside the block
 
 	/// Identifying the stride between columns of a column-major matrix or rows 
 	/// of a row-major matrix
-	I32 matrixStride;
+	I32 matrixStride = -1;
+	/// @}
+
+	/// Do common checks
+	template<typename T>
+	void writeClientMemorySanityChecks(void* buffBase, U32 buffSize,
+		const F32 arr[], U32 size) const;
+
+	/// Do the actual job of setClientMemory
+	template<typename T>
+	void writeClientMemoryInternal(
+		void* buff, U32 buffSize, const T arr[], U32 size) const;
+
+	/// Do the actual job of setClientMemory for matrices
+	template<typename Mat, typename Vec>
+	void setClientMemoryInternalMatrix(void* buff, U32 buffSize,
+		const Mat arr[], U32 size) const;
 };
 
 /// Interface shader block
 class GlProgramBlock
 {
-	friend class ShaderProgram;
+	friend class GlProgram;
 
 public:
 	/// Block type
@@ -150,19 +143,8 @@ public:
 		SHADER_STORAGE_BLOCK
 	};
 
-	GlProgramBlock()
-	{}
-
-	~GlProgramBlock()
-	{}
-
 	/// @name Accessors
 	/// @{
-	GLuint getIndex() const
-	{
-		return index;
-	}
-
 	PtrSize getSize() const
 	{
 		return size;
@@ -173,7 +155,7 @@ public:
 		return name;
 	}
 
-	GLuint getBinding() const
+	U32 getBinding() const
 	{
 		return bindingPoint;
 	}
@@ -183,15 +165,41 @@ private:
 	U8 type;
 	std::string name;
 	GlProgram* prog;
-	Vector<GlProgramVariables*> variables;
+	Vector<GlProgramVariable*> variables;
 	U32 size; ///< In bytes
-	GLuint bindingPoint;
+	U32 bindingPoint;
 };
 
-/// Shader program. It only contains 1 shader and it can be combined with other
-/// programs in a program pipiline.
-class GlProgram: public GlObject
+/// Shader program. It only contains a single shader and it can be combined 
+/// with other programs in a program pipiline.
+class GlProgram: public GlContainer
 {
+public:
+	/// @name Constructors/Destructor
+	/// @{
+
+	/// Create the program
+	/// @param shaderType It can be GL_VERTEX_SHADER, GL_FRAGMENT_SHADER etc
+	/// @param source The shader's source
+	GlProgram(GLenum shaderType, const char* source);
+
+	~GlProgram();
+	/// @}
+
+private:
+	GLenum type; ///< GL_VERTEX_SHADER, GL_FRAGMENT_SHADER etc
+
+	Vector<GlProgramVariable> variables;
+	Dictionary<GlProgramVariable*> variablesDict;
+
+	Vector<GlProgramBlock*> blocks;
+	Dictionary<GlProgramBlock*> blocksDict;
+
+	/// Query the program for variables
+	initVariablesOfType(GLenum programInterface);
+
+	/// Query the program for blocks
+	initBlocksOfType(GLenum programInterface);
 };
 
 /// @}

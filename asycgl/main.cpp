@@ -30,30 +30,37 @@ layout(binding = 1, std140) buffer uBuffer
 } ub;
 
 layout(location = 0) out vec3 vColor;
+layout(location = 1) out vec2 vCoords;
 
 void main()
 {
 	gl_Position = vec4(position * 0.9, 1.0);
 	vColor = color + ub.color.rgb;
+	vCoords = position.xy * 0.5 + 0.5;
 }
 )";
 
 
 const char* frag_src = R"(
 #version 430 core
+#extension GL_NV_gpu_shader5 : enable
 
 layout(binding = 10, std140) uniform uBuffer
 {
 	vec3 color;
+	uvec2 handle;
 };
 
+layout(binding = 11) uniform sampler2D tex;
+
 layout(location = 0) in vec3 vColor;
+layout(location = 1) in vec2 vCoords;
 
 layout(location = 0) out vec3 fColor;
 
 void main()
 {
-	fColor = vColor + color;
+	fColor = (vColor + color) * 0.001 + texture(tex, vCoords).rgb;
 }
 )";
 
@@ -219,13 +226,48 @@ GLuint createVertexBuffer()
 	glGenBuffers(1, &buff);
 
 	glBindBuffer(GL_ARRAY_BUFFER, buff);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(vert), &vert[0], GL_STATIC_DRAW);
+	//glBufferData(GL_ARRAY_BUFFER, sizeof(vert), &vert[0], GL_STATIC_DRAW);
+
+	GLbitfield flags = GL_MAP_WRITE_BIT | GL_MAP_READ_BIT 
+		| GL_MAP_PERSISTENT_BIT;
+
+	glBufferStorage(GL_ARRAY_BUFFER, sizeof(vert), &vert[0], flags);
+
+	unsigned char* map = (unsigned char*)glMapBufferRange(
+			GL_ARRAY_BUFFER, 0, sizeof(vert), 
+			flags);
+
+	CHECK_GL_ERROR();
 
 	return buff;
 }
 
+void createTexture(GLuint& tex, GLuint64& handle)
+{
+	const unsigned char data[] = {
+		255, 0, 0,
+		0, 255, 0,
+		0, 0, 255,
+		255, 0, 255};
+
+	CHECK_GL_ERROR();
+	glGenTextures(1, &tex);
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, tex);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 2, 2, 0, GL_RGB, GL_UNSIGNED_BYTE, 
+		data);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+	handle = glGetTextureHandleNV(tex);
+	glMakeTextureHandleResidentNV(handle);
+	CHECK_GL_ERROR();
+}
+
 GLuint createPipeline(GLuint vert_prog, GLuint frag_prog)
 {
+	CHECK_GL_ERROR();
+
 	GLuint ppline;
 	glGenProgramPipelines(1, &ppline);
 	glBindProgramPipeline(ppline);
@@ -280,10 +322,24 @@ void threadFunc()
 {
 	SDL_GL_MakeCurrent(window, ctx2);
 
+	GLuint tex;
+	GLuint64 texHandle;
+
+	createTexture(tex, texHandle);
+	glActiveTexture(GL_TEXTURE0 + 11);
+	glBindTexture(GL_TEXTURE_2D, tex);
+
 	vert_prog = createProg(GL_VERTEX_SHADER, vert_src);
 	frag_prog = createProg(GL_FRAGMENT_SHADER, frag_src);
 	vertBuff = createVertexBuffer();
 
+	{
+		GLint unit;
+		glGetUniformiv(
+			frag_prog, glGetUniformLocation(frag_prog, "tex"), &unit);
+
+		std::cout << "[[[[[[[[[[[[[[" << unit << std::endl;
+	}
 
 	glDisable(GL_DEPTH_TEST);
 	glViewport(0, 0, 800, 800);
@@ -298,8 +354,14 @@ void threadFunc()
 	GLuint ubuff;
 	glGenBuffers(1, &ubuff);
 	glBindBuffer(GL_UNIFORM_BUFFER, ubuff);
-	float col[4] = {0, 0, 0, 1};
-	glBufferData(GL_UNIFORM_BUFFER, sizeof(float) * 4, col, GL_DYNAMIC_DRAW);
+	struct Foo
+	{
+		float col[4] = {0, 0, 0, 1};
+		GLuint64 handle;
+	} foo;
+	foo.handle = texHandle;
+
+	glBufferData(GL_UNIFORM_BUFFER, sizeof(Foo), &foo, GL_DYNAMIC_DRAW);
 	glBindBuffer(GL_UNIFORM_BUFFER, 0);
 	glBindBufferBase(GL_UNIFORM_BUFFER, 10, ubuff);
 	CHECK_GL_ERROR();
@@ -308,6 +370,7 @@ void threadFunc()
 	GLuint ubuff2;
 	glGenBuffers(1, &ubuff2);
 	glBindBuffer(GL_UNIFORM_BUFFER, ubuff2);
+	float col[4] = {0, 0, 0, 1};
 	glBufferData(GL_UNIFORM_BUFFER, sizeof(float) * 4, col, GL_DYNAMIC_DRAW);
 	glBindBuffer(GL_UNIFORM_BUFFER, 0);
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, ubuff2);
@@ -337,6 +400,8 @@ void threadFunc()
 		glBindBuffer(GL_UNIFORM_BUFFER, ubuff2);	
 		glBufferData(GL_UNIFORM_BUFFER, sizeof(float) * 4, col, GL_DYNAMIC_DRAW);
 
+
+		CHECK_GL_ERROR();
 
 		glDrawArrays(GL_TRIANGLES, 0, 6);
 
