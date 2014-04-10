@@ -25,14 +25,6 @@ public:
 	virtual ~GlDescriptor()
 	{}
 
-	/*void* operator new(PtrSize size)
-	{
-	}
-
-	void operator delete(void* ptr)
-	{
-	}*/
-
 protected:
 	U8 mask = 0; ///< A common generic mask
 
