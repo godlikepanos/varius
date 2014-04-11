@@ -14,6 +14,62 @@ typedef I8 Bool8;
 
 lua_State* l;
 
+template<typename... Types>
+struct GetVariadicTypeId
+{
+	// Forward
+	template<typename Type, typename... Types_>
+	struct Helper;
+
+	// Declaration
+	template<typename Type, typename TFirst, typename... Types_>
+	struct Helper<Type, TFirst, Types_...>: Helper<Type, Types_...>
+	{};
+
+	// Specialized
+	template<typename Type, typename... Types_>
+	struct Helper<Type, Type, Types_...>
+	{
+		static const I ID = sizeof...(Types_);
+	};
+
+	/// Get the id
+	template<typename Type>
+	static constexpr I get()
+	{
+		return sizeof...(Types) - Helper<Type, Types...>::ID - 1;
+	}
+};
+
+template<typename T>
+struct type_id_struct
+{
+    typedef T type;
+    T object_instance;
+};
+
+template<int N, typename... TypeList>
+struct reduce {};
+
+template<int N, typename T1, typename... TypeList>
+struct reduce<N, T1, TypeList...>
+{
+    typedef typename reduce<N - 1, TypeList... >::type type;
+};
+
+template<typename T1, typename... TypeList>
+struct reduce<0, T1, TypeList...>
+{
+    typedef T1 type;
+};
+
+//convenience function
+template<int N, typename... TypeList>
+type_id_struct<typename reduce<N, TypeList...>::type> return_type()
+{
+        return type_id_struct<typename reduce<N, TypeList...>::type>();
+}
+
 /// lua userdata
 struct UserData
 {
@@ -53,11 +109,10 @@ const char* ClassProxy<Class>::NAME = nullptr;
 template<typename Class>
 struct StackGet
 {
-	Class operator()(lua_State* l, I& stackIndex)
+	Class operator()(lua_State* l, I stackIndex)
 	{
 		UserData* udata = (UserData*)luaL_checkudata(l, stackIndex, 
 			ClassProxy<Class>::getName());
-		++stackIndex;
 
 		const Class* a = reinterpret_cast<const Class*>(udata->m_ptr);
 		return Class(*a);
@@ -68,11 +123,10 @@ struct StackGet
 template<typename Class>
 struct StackGet<const Class&>
 {
-	const Class& operator()(lua_State* l, I& stackIndex)
+	const Class& operator()(lua_State* l, I stackIndex)
 	{
 		UserData* udata = (UserData*)luaL_checkudata(l, stackIndex, 
 			ClassProxy<Class>::getName());
-		++stackIndex;
 
 		const Class* a = reinterpret_cast<const Class*>(udata->m_ptr);
 		return *a;
@@ -83,11 +137,10 @@ struct StackGet<const Class&>
 template<typename Class>
 struct StackGet<Class&>
 {
-	Class& operator()(lua_State* l, I& stackIndex)
+	Class& operator()(lua_State* l, I stackIndex)
 	{
 		UserData* udata = (UserData*)luaL_checkudata(l, stackIndex, 
 			ClassProxy<Class>::getName());
-		++stackIndex;
 
 		Class* a = reinterpret_cast<Class*>(udata->m_ptr);
 		return *a;
@@ -98,11 +151,10 @@ struct StackGet<Class&>
 template<typename Class>
 struct StackGet<const Class*>
 {
-	const Class* operator()(lua_State* l, I& stackIndex)
+	const Class* operator()(lua_State* l, I stackIndex)
 	{
 		UserData* udata = (UserData*)luaL_checkudata(l, stackIndex, 
 			ClassProxy<Class>::getName());
-		++stackIndex;
 
 		const Class* a = reinterpret_cast<const Class*>(udata->m_ptr);
 		return a;
@@ -113,11 +165,10 @@ struct StackGet<const Class*>
 template<typename Class>
 struct StackGet<Class*>
 {
-	Class* operator()(lua_State* l, I& stackIndex)
+	Class* operator()(lua_State* l, I stackIndex)
 	{
 		UserData* udata = (UserData*)luaL_checkudata(l, stackIndex, 
 			ClassProxy<Class>::getName());
-		++stackIndex;
 
 		Class* a = reinterpret_cast<Class*>(udata->m_ptr);
 		return a;
@@ -128,9 +179,9 @@ struct StackGet<Class*>
 	template<> \
 	struct StackGet<Type_> \
 	{ \
-		Type_ operator()(lua_State* l, I& stackIndex) \
+		Type_ operator()(lua_State* l, I stackIndex) \
 		{ \
-			return luafunc_(l, stackIndex++); \
+			return luafunc_(l, stackIndex); \
 		} \
 	};
 
@@ -152,18 +203,28 @@ ANKI_STACK_GET_TEMPLATE_SPECIALIZATION(const char*, luaL_checkstring)
 template<typename T>
 struct CallFunction;
 
-// R (_1)
+// R (...)
 template<typename TReturn, typename... TArgs>
 struct CallFunction<TReturn (*)(TArgs...)>
-{
+
 	int operator()(lua_State* l, TReturn (*func)(TArgs...))
 	{
-		I arg = 0;
-
-		TReturn out = (*func)(StackGet<TArgs>()(l, arg)...);
+		I arg = sizeof...(TArgs);
+		TReturn out = (*func)(StackGet<TArgs>()(l, arg--)...);
 		//PushStack<TReturn, flags> ps;
 		//ps(l, out);
-		return 1;
+		return 0;
+	}
+};
+
+// void (...)
+template<typename... TArgs>
+struct CallFunction<void (*)(TArgs...)>
+{
+	int operator()(lua_State* l, void (*func)(TArgs...))
+	{
+		(*func)(StackGet<TArgs>()(l, 1 + GetVariadicTypeId<TArgs...>::template get<TArgs>())...); 
+		return 0;
 	}
 };
 
@@ -177,11 +238,13 @@ struct FunctionSignature<TReturn (*)(TArgs...)>
 	using Func = TReturn (*)(TArgs...);
 	using Return = TReturn;
 
+	template<Func func>
 	static int luafunc(lua_State* l)
 	{
 		checkArgsCount(l, sizeof...(TArgs));
 		//auto ff = func; // A hack that saves GCC
-		//CallFunction<decltype(ff), flags> cf;
+		CallFunction<Func> cf;
+		cf(l, func);
 		return 0;
 	}
 };
@@ -262,11 +325,11 @@ int main(int, char**)
 	lua_setglobal(l, "simpleFunction");
 
 	typedef FunctionSignature<decltype(&simpleFunc2)> Sig;
-	lua_pushcfunction(l, &Sig::luafunc);
+	lua_pushcfunction(l, &Sig::luafunc<&simpleFunc2>);
 	lua_setglobal(l, "simpleFunction2");
 	
 
-	int e = luaL_dostring(l, "simpleFunction2('something')");
+	int e = luaL_dostring(l, "simpleFunction2(123.0, 456.0)");
 	if(e)
 	{
 		std::string str(lua_tostring(l, -1));
