@@ -1,12 +1,23 @@
 #include <cstdio>
 #include <cstddef>
 #include <lua.hpp>
+#include <new>
 
 struct UserData
 {
 	void* m_data;
 	bool m_gc;
 };
+
+void checkArgsCount(lua_State* l, int argsCount)
+{
+	int actualArgsCount = lua_gettop(l);
+	if(argsCount != actualArgsCount)
+	{
+		luaL_error(l, "Expecting %d arguments, got %d", argsCount, 
+			actualArgsCount);
+	}
+}
 
 void createClass(lua_State* l, const char* className)
 {
@@ -36,12 +47,39 @@ void pushLuaCFuncStaticMethod(lua_State* l, const char* className,
 	lua_pop(l, 1); // pop cfunc
 }
 
+void* luaAlloc(lua_State* l, size_t size)
+{
+	void* ud;
+	lua_Alloc alloc = lua_getallocf(l, &ud);
+
+	return alloc(ud, nullptr, 0, size);
+}
+
+void luaFree(lua_State* l, void* ptr)
+{
+	void* ud;
+	lua_Alloc alloc = lua_getallocf(l, &ud);
+
+	alloc(ud, ptr, 0, 0);
+}
+
 class Foo
 {
 public:
+	int m_x;
+
+	Foo(int x)
+	:	m_x(x)
+	{}
+
+	~Foo()
+	{
+		printf("~Foo\n");
+	}
+
 	void simplePrint()
 	{
-		printf("Hello\n");
+		printf("Hello %d\n", m_x);
 	}
 };
 
@@ -57,7 +95,7 @@ int cfunc(lua_State* l)
 }
 
 const char* source = R"(
-foo = Foo.new()
+local foo = Foo.new(123)
 foo:simplePrint()
 )";
 
@@ -69,12 +107,18 @@ int main(int, char**)
 	lua_register(l, "cfunc", cfunc);
 	wrapModuleFoo(l);
 
+	printf("mem %d\n", lua_gc(l, LUA_GCCOUNT, 0));
 	int err = luaL_dostring(l, source);
 	if(err)
 	{
 		printf("LUA ERROR: %s\n", lua_tostring(l, -1));
 		lua_pop(l, 1);
 	}
+	printf("mem %d\n", lua_gc(l, LUA_GCCOUNT, 0));
+	lua_gc(l, LUA_GCCOLLECT, 0);
+	printf("mem %d\n", lua_gc(l, LUA_GCCOUNT, 0));
+
+	lua_close(l);
 
 	return 0;
 }

@@ -44,9 +44,9 @@ def type_is_number(type):
 	""" Check if a type is number """
 
 	numbers = ["U8", "U16", "U32", "U64", "I8", "I16", "I32", "I64", \
-		"U", "I", "PtrSize", "Bool", "Bool8", "F32", "F64" \
+		"U", "I", "PtrSize", "Bool", "Bool8", "F32", "F64", \
 		"int", "unsigned", "unsigned int", "short", "unsigned short", "uint"]
-
+		
 	it_is = False
 	for num in numbers:
 		if num == type:
@@ -130,8 +130,8 @@ def gen_ret(type_txt):
 			write_glue("d->m_data = " \
 				"alloc.newInstance<%s>(std::move(ret));" % type)"""
 
-			write_glue("d->m_data = " \
-				"new %s(std::move(ret));" % type)
+			write_glue("ud->m_data = luaAlloc(l, sizeof(%d));" % type)
+			write_glue("::new(ud->m_data) %s(std::move(ret));" % type)
 
 			write_glue("if(d->m_data == nullptr)")
 			write_glue("{")
@@ -145,7 +145,37 @@ def gen_ret(type_txt):
 
 	write_glue("")
 
-def gen_method(class_name, meth_el):
+def args(args_el, stack_index):
+	if args_el is None:
+		return ""
+
+	# Do the work
+	args_str = ""
+	arg_index = 0
+	for arg_el in args_el.iter("arg"):
+		gen_arg(arg_el.text, stack_index)
+		args_str += "arg%d, " % stack_index
+		write_glue("")
+		stack_index += 1
+
+		if len(args_str) > 0:
+			args_str = args_str[:-2]
+
+	return args_str
+
+def check_args(args_el, bias):
+	if args_el is None:
+		write_glue("checkArgsCount(l, %d);" % bias)
+	else:
+		count = 0
+		for arg_el in args_el.iter("arg"):
+			count += 1
+
+		write_glue("checkArgsCount(l, %d);" % (bias + count))
+
+	write_glue("")
+
+def method(class_name, meth_el):
 	""" Handle a method """
 
 	meth_name = meth_el.find("name").text
@@ -159,26 +189,16 @@ def gen_method(class_name, meth_el):
 	write_glue("void* voidp;")
 	write_glue("(void)voidp;")
 	write_glue("")
+
+	check_args(meth_el.find("args"), 1)
+
 	write_glue("voidp = luaL_checkudata(l, %d, classname%s);" % (1, class_name))
 	write_glue("ud = reinterpret_cast<UserData*>(voidp);")
 	write_glue("%s* self = reinterpret_cast<%s*>(ud->m_data);" \
 		% (class_name, class_name))
 	write_glue("")
 
-	args_el = meth_el.find("args")
-
-	args_str = ""
-	if args_el is not None:
-		stack_index = 1
-		arg_index = 0
-		for arg_el in args_el.iter("arg"):
-			gen_arg(arg_el.text, stack_index)
-			args_str += "arg%d, " % stack_index
-			write_glue("")
-			stack_index += 1
-
-		if len(args_str) > 0:
-			args_str = args_str[:-2]
+	args_str = args(meth_el.find("args"), 2)
 
 	# Return value
 	ret_txt = None
@@ -203,19 +223,30 @@ def gen_method(class_name, meth_el):
 	write_glue("}")
 	write_glue("")
 
-def gen_constructor(constr_el, class_name):
+def constructor(constr_el, class_name):
 	""" Handle constructor """
 	
 	write_glue("// Constructor for %s" % (class_name))
 	write_glue("static int wrap%sCtor(lua_State* l)" % class_name)
 	write_glue("{")
 	ident(1)
+	write_glue("UserData* ud;")
+	write_glue("(void)ud;")
+	write_glue("void* voidp;")
+	write_glue("(void)voidp;")
+	write_glue("")
 
-	write_glue("void* ptr = lua_newuserdata(l, sizeof(UserData));")
+	check_args(constr_el.find("args"), 0)
+
+	# Args
+	args_str = args(constr_el.find("args"), 1)
+
+	# Create new userdata
+	write_glue("voidp = lua_newuserdata(l, sizeof(UserData));")
 	write_glue("luaL_setmetatable(l, classname%s);" % class_name)
 	write_glue("")
 
-	write_glue("%s* inst = new %s();" % (class_name, class_name))
+	write_glue("void* inst = luaAlloc(l, sizeof(%s));" % class_name)
 	write_glue("if(inst == nullptr)")
 	write_glue("{")
 	ident(1)
@@ -224,8 +255,10 @@ def gen_constructor(constr_el, class_name):
 	ident(-1)
 	write_glue("}")
 	write_glue("")
+	write_glue("::new(inst) %s(%s);" % (class_name, args_str))
+	write_glue("")
 
-	write_glue("UserData* ud = reinterpret_cast<UserData*>(ptr);")
+	write_glue("ud = reinterpret_cast<UserData*>(voidp);")
 	write_glue("ud->m_data = inst;")
 	write_glue("ud->m_gc = true;")
 	write_glue("")
@@ -236,7 +269,38 @@ def gen_constructor(constr_el, class_name):
 	write_glue("}")
 	write_glue("")
 
-def gen_class(class_el):
+def destructor(class_name):
+	""" Create a destroctor """
+
+	write_glue("// Destructor for %s" % (class_name))
+	write_glue("static int wrap%sDtor(lua_State* l)" % class_name)
+	write_glue("{")
+	ident(1)
+
+	write_glue("checkArgsCount(l, 1);")
+	write_glue("void* voidp = luaL_checkudata(l, 1, classname%s);" % class_name)
+	write_glue("UserData* ud = reinterpret_cast<UserData*>(voidp);")
+
+	write_glue("if(ud->m_gc)")
+	write_glue("{")
+	ident(1)
+	write_glue("%s* inst = reinterpret_cast<%s*>(ud->m_data);" \
+		% (class_name, class_name))
+	write_glue("inst->~%s();" % class_name)
+	write_glue("luaFree(l, inst);")
+	ident(-1)
+	write_glue("}")
+	write_glue("")
+
+	write_glue("return 0;")
+
+	ident(-1)
+	write_glue("}")
+	write_glue("")
+
+def class_(class_el):
+	""" Create a class """
+
 	class_name = class_el.find("name").text
 	class_alias = class_el.find("alias")
 	if class_alias is not None:
@@ -250,8 +314,12 @@ def gen_class(class_el):
 	has_constructor = False
 	constructor_el = class_el.find("constructor")
 	if constructor_el is not None:
-		gen_constructor(constructor_el, class_name)
+		constructor(constructor_el, class_name)
 		has_constructor = True
+
+	# Destructor
+	if has_constructor:
+		destructor(class_name)
 
 	# Methods LUA C functions
 	meth_names = []
@@ -259,7 +327,7 @@ def gen_class(class_el):
 	if meths_el is not None:
 		for meth_el in meths_el.iter("method"):
 			meth_names.append(meth_el.find("name").text)
-			gen_method(class_name, meth_el)
+			method(class_name, meth_el)
 
 	# Write class header
 	write_glue("static void wrap%s(lua_State* l)" % class_name)
@@ -271,6 +339,10 @@ def gen_class(class_el):
 	if has_constructor:
 		write_glue("pushLuaCFuncStaticMethod(l, classname%s, \"new\", " \
 			"wrap%sCtor);" % (class_name, class_name))
+
+	# Register destructor
+	if has_constructor:
+		write_glue("pushLuaCFuncMethod(l, \"__gc\", wrap%sDtor);" % class_name)
 
 	# Register methods
 	if len(meth_names) > 0:
@@ -298,7 +370,7 @@ def main():
 		class_names = []
 		for cls in root.iter("classes"):
 			for cl in cls.iter("class"):
-				gen_class(cl)
+				class_(cl)
 				class_names.append(cl.find("name").text)
 
 		write_glue("void wrapModule%s(lua_State* l)" % get_base_fname(filename))

@@ -3,6 +3,9 @@
 		<class>
 			<name>Foo</name>
 			<constructor>
+				<args>
+					<arg>int</arg>
+				</args>
 			</constructor>
 			<methods>
 				<method>
