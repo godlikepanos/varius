@@ -3,35 +3,12 @@
 		<class>
 			<name>Foo</name>
 			<constructor>
-				<args>
-					<arg>const Foo&amp;</arg>
-				</args>
 			</constructor>
 			<methods>
 				<method>
-					<name>doSomething</name>
-					<args>
-						<arg>const char*</arg>
-						<arg>int</arg>
-					</args>
+					<name>simplePrint</name>
 				</method>
 			</methods>
-		</class>
-
-		<class>
-			<name>Boo</name>
-			<constructor>
-				<args>
-					<arg>const Foo&amp;</arg>
-				</args>
-			</constructor>
-			<method>
-				<name>doSomething</name>
-				<args>
-					<arg>const char*</arg>
-					<arg>int</arg>
-				</args>
-			</method>
 		</class>
 	</classes>
 </lua>
