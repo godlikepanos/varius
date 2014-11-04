@@ -81,6 +81,17 @@ public:
 	{
 		printf("Hello %d\n", m_x);
 	}
+
+	int x()
+	{
+		return m_x;
+	}
+
+	template<typename Number>
+	Number alias()
+	{
+		return m_x;
+	}
 };
 
 #include "FooAutogen.h"
@@ -97,6 +108,8 @@ int cfunc(lua_State* l)
 const char* source = R"(
 local foo = Foo.new(123)
 foo:simplePrint()
+print(string.format("x is:%d", foo:x()))
+print(foo:aliasFloat())
 )";
 
 int main(int, char**)

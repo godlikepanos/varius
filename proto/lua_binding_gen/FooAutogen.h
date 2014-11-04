@@ -66,12 +66,56 @@ static int wrapFoosimplePrint(lua_State* l)
 	return 0;
 }
 
+// Method Foo::x
+static int wrapFoox(lua_State* l)
+{
+	UserData* ud;
+	(void)ud;
+	void* voidp;
+	(void)voidp;
+	
+	checkArgsCount(l, 1);
+	
+	voidp = luaL_checkudata(l, 1, classnameFoo);
+	ud = reinterpret_cast<UserData*>(voidp);
+	Foo* self = reinterpret_cast<Foo*>(ud->m_data);
+	
+	int ret = self->x();
+	
+	lua_pushnumber(l, ret);
+	
+	return 1;
+}
+
+// Method Foo::alias<float>
+static int wrapFooaliasFloat(lua_State* l)
+{
+	UserData* ud;
+	(void)ud;
+	void* voidp;
+	(void)voidp;
+	
+	checkArgsCount(l, 1);
+	
+	voidp = luaL_checkudata(l, 1, classnameFoo);
+	ud = reinterpret_cast<UserData*>(voidp);
+	Foo* self = reinterpret_cast<Foo*>(ud->m_data);
+	
+	float ret = self->alias<float>();
+	
+	lua_pushnumber(l, ret);
+	
+	return 1;
+}
+
 static void wrapFoo(lua_State* l)
 {
-	createClass(l, "Foo");
+	createClass(l, classnameFoo);
 	pushLuaCFuncStaticMethod(l, classnameFoo, "new", wrapFooCtor);
 	pushLuaCFuncMethod(l, "__gc", wrapFooDtor);
 	pushLuaCFuncMethod(l, "simplePrint", wrapFoosimplePrint);
+	pushLuaCFuncMethod(l, "x", wrapFoox);
+	pushLuaCFuncMethod(l, "aliasFloat", wrapFooaliasFloat);
 	lua_settop(l, 0);
 }
 

@@ -1,15 +1,18 @@
 <lua>
 	<classes>
-		<class>
-			<name>Foo</name>
+		<class name="Foo">
 			<constructor>
 				<args>
 					<arg>int</arg>
 				</args>
 			</constructor>
 			<methods>
-				<method>
-					<name>simplePrint</name>
+				<method name="simplePrint"></method>
+				<method name="x">
+					<return>int</return>
+				</method>
+				<method alias="aliasFloat" name="alias&lt;float&gt;">
+					<return>float</return>
 				</method>
 			</methods>
 		</class>
