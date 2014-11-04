@@ -2,12 +2,17 @@
 #include <cstddef>
 #include <lua.hpp>
 #include <new>
+#include <cassert>
+#include <algorithm>
 
 struct UserData
 {
 	void* m_data;
 	bool m_gc;
 };
+
+#define ANKI_ASSERT assert
+using Error = int;
 
 void checkArgsCount(lua_State* l, int argsCount)
 {
@@ -63,6 +68,8 @@ void luaFree(lua_State* l, void* ptr)
 	alloc(ud, ptr, 0, 0);
 }
 
+#define INFO() printf("  %s\n", __PRETTY_FUNCTION__)
+
 class Foo
 {
 public:
@@ -70,11 +77,32 @@ public:
 
 	Foo(int x)
 	:	m_x(x)
-	{}
+	{
+		INFO();
+	}
+
+	Foo(const Foo& f)
+	:	m_x(f.m_x)
+	{
+		INFO();
+	}
+
+	Foo(Foo&& f)
+	:	m_x(f.m_x)
+	{
+		f.m_x = 0;
+		INFO();
+	}
 
 	~Foo()
 	{
-		printf("~Foo\n");
+		INFO();
+	}
+
+	Foo& operator=(const Foo& b)
+	{
+		m_x = b.m_x;
+		return *this;
 	}
 
 	void simplePrint()
@@ -92,6 +120,75 @@ public:
 	{
 		return m_x;
 	}
+
+	Error returnError(int err)
+	{
+		return err;
+	}
+
+	const char* returnString() const
+	{
+		return "a string";
+	}
+
+	static int staticMethod(Foo& f, int x)
+	{
+		f.m_x += x;
+		return f.m_x;
+	}
+
+	Foo operator+(const Foo& b) const
+	{
+		return Foo(m_x + b.m_x);
+	}
+
+	int& operator()(int i, int j)
+	{
+		return m_x;
+	}
+
+	int operator()(int i, int j) const
+	{
+		return m_x;
+	}
+};
+
+class Boo
+{
+public:
+	Foo m_foo;
+
+	Boo(const Foo& f)
+	:	m_foo(f)
+	{
+		INFO();
+	}
+
+	~Boo()
+	{
+		INFO();
+	}
+
+	Foo get() const
+	{
+		return m_foo;
+	}
+
+	Foo& getRef()
+	{
+		return m_foo;
+	}
+
+	Foo* getPtr()
+	{
+		return &m_foo;
+	}
+
+	int manyArgs(int x, float f, Foo foo, const Foo& foo1)
+	{
+		printf("Many args %d %f\n", x, f);
+		return x + f;
+	}
 };
 
 #include "FooAutogen.h"
@@ -106,10 +203,10 @@ int cfunc(lua_State* l)
 }
 
 const char* source = R"(
-local foo = Foo.new(123)
-foo:simplePrint()
-print(string.format("x is:%d", foo:x()))
-print(foo:aliasFloat())
+local a = Foo.new(1)
+local b = Foo.new(2)
+local c = a + b
+print(c:x())
 )";
 
 int main(int, char**)
@@ -120,16 +217,17 @@ int main(int, char**)
 	lua_register(l, "cfunc", cfunc);
 	wrapModuleFoo(l);
 
-	printf("mem %d\n", lua_gc(l, LUA_GCCOUNT, 0));
+	//printf("mem %d\n", lua_gc(l, LUA_GCCOUNT, 0));
 	int err = luaL_dostring(l, source);
 	if(err)
 	{
 		printf("LUA ERROR: %s\n", lua_tostring(l, -1));
 		lua_pop(l, 1);
 	}
-	printf("mem %d\n", lua_gc(l, LUA_GCCOUNT, 0));
+	//printf("mem %d\n", lua_gc(l, LUA_GCCOUNT, 0));
+	printf("-------- GC\n");
 	lua_gc(l, LUA_GCCOLLECT, 0);
-	printf("mem %d\n", lua_gc(l, LUA_GCCOUNT, 0));
+	//printf("mem %d\n", lua_gc(l, LUA_GCCOUNT, 0));
 
 	lua_close(l);
 

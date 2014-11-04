@@ -6,7 +6,7 @@ ADD_SUBDIRECTORY(lua)
 
 INCLUDE_DIRECTORIES(lua ${CMAKE_CURRENT_SOURCE_DIR})
 
-ADD_DEFINITIONS("-std=c++11")
+ADD_DEFINITIONS("-std=c++11 -Wall -Wextra -Wunused -Wunused-variable")
 
 ADD_EXECUTABLE(test_lua Main.cpp)
 TARGET_LINK_LIBRARIES(test_lua ankilua)

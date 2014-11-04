@@ -1,4 +1,7 @@
-<lua>
+<glue>
+	<head><![CDATA[// This is auto generated file
+]]></head>
+
 	<classes>
 		<class name="Foo">
 			<constructor>
@@ -14,9 +17,80 @@
 				<method alias="aliasFloat" name="alias&lt;float&gt;">
 					<return>float</return>
 				</method>
+				<method name="returnError">
+					<args>
+						<arg>int</arg>
+					</args>
+					<return>Error</return>
+				</method>
+				<method name="returnString">
+					<return>const char*</return>
+				</method>
+				<method name="staticMethod" static="1">
+					<args>
+						<arg>Foo&amp;</arg>
+						<arg>int</arg>
+					</args>
+					<return>int</return>
+				</method>
+				<method name="operator=" alias="copy">
+					<args>
+						<arg>const Foo&amp;</arg>
+					</args>
+					<return>Foo&amp;</return>
+				</method>
+				<method name="operator+">
+					<args>
+						<arg>const Foo&amp;</arg>
+					</args>
+					<return>Foo</return>
+				</method>
+				<method name="operator()" alias="getIJ">
+					<args>
+						<arg>int</arg>
+						<arg>int</arg>
+					</args>
+					<return>int</return>
+				</method>
+				<method name="setIJ">
+					<overrideCall><![CDATA[(*self)(arg0, arg1) = arg2;]]></overrideCall>
+					<args>
+						<arg>int</arg>
+						<arg>int</arg>
+						<arg>int</arg>
+					</args>
+				</method>
+			</methods>
+		</class>
+		<class name="Boo">
+			<constructor>
+				<args>
+					<arg>const Foo&amp;</arg>
+				</args>
+			</constructor>
+			<methods>
+				<method name="get">
+					<return>Foo</return>
+				</method>
+				<method name="getRef">
+					<return>Foo&amp;</return>
+				</method>
+				<method name="getPtr">
+					<return>Foo*</return>
+				</method>
+				<method name="manyArgs">
+					<args>
+						<arg>int</arg>
+						<arg>float</arg>
+						<arg>Foo</arg>
+						<arg>const Foo&amp;</arg>
+					</args>
+					<return>int</return>
+				</method>
 			</methods>
 		</class>
 	</classes>
-</lua>
 
+	<tail><![CDATA[ ]]></tail>
+</glue>
 
